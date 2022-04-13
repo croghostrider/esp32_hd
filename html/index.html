@@ -17,22 +17,35 @@
 .va_b { vertical-align: bottom; }
 .red { color: red; }
 .bold { font-weight: bold; }
+
+:root {
+  --text-color:#000000;
+  --bgrd-color:#FFFFFF
+  --frame-brd-color: lightgray;
+}
+
 body, html {
- 	margin: 0;padding: 0px;background-color: #FFFFFF;background: #FFFFFF;
-	color: #000000;font-family: Arial;line-height: 1.2em; font-size: 14px;
+ 	margin: 0;
+    padding: 0px;
+    background-color: var(--bgrd-color);
+    background: var(--bgrd-color);
+	color: var(--text-color);
+    font-family: Arial;
+    line-height: 1.2em; 
+    font-size: 14px;
 }
 select {font-size: 10pt;background-color: #dfdfdf; padding: 3px;}
 
 img {border: 0; vertical-align: middle;}
 h1 {
-	color: #000000; font-weight: bold; font-size: 16px;
+	color: var(--text-color); font-weight: bold; font-size: 16px;
         margin: 0; padding: 2px 0 3px 10px;
         background-position: 0 -2843px; background-repeat: repeat-x;
         border-top: 1px solid #f0f0f0; border-left: 1px solid #f0f0f0;
         border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0;
         vertical-align: middle; text-align: center;
 }
-h2, h3, h4 { text-align: center; font-weight: bold; color: #000000; background-color: transparent; }
+h2, h3, h4 { text-align: center; font-weight: bold; color: var(--text-color); background-color: transparent; }
 .header { margin: 0px 0px 2px 0px; overflow: hidden; }
 table.header {text-align: center; vertical-align: middle; 
 	background-color: #dddddd; color: #990000; width: 100%;
@@ -65,7 +78,6 @@ input.buttons {
 	margin-left: 10px;
 	margin-top: 5px;
 	padding: 5px;
-
 }
 .param {
         text-align: center;
@@ -82,7 +94,7 @@ input.buttons {
 .param tr {padding: 1px; background-color: #FFFFFF; color: #000;}
 
 .stick {margin:15px; padding:15px; width:200px; }
-.classic {border:1px solid #A7CD10; background-color:#E1FAB8; border-radius:15px; -moz-border-radius:15px; -webkit-border-radius:15px;}
+.classic {border:1px solid #A7CD10; background-color:#E1FAB8; border-radius:15px; -webkit-border-radius:15px;}
 .classic.error {border:1px solid #E2365C;background-color:#F7C8D2;}
 .last {background-color:#CBECFA; border:1px solid #15A6E3;}
 .exit{background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACpElEQVR4nHWTTU8TQRzGn5n/rNtXuxVoWbSmJcYXwGQuFBNP+w0w8AEkPXHDT4LfoF7lAL6QXiDZIF4IlyXeCVEogqFu6Yvbmtnx4LIRo//jJL/fMzPPDEM0Xq22OvT9cvPjx6X5szMf/5gN27bsubm6Gg6PnjYaLwCAA8Cn5eV6YXZ2hTM2nxoddd+Mj1v/gV3r3r153WqtbD16VAcA5tVqq4XZ2ZXm1haGrRa0Uuien3v9dtt5dnrqA8D6xIRlV6tufnJSXuzuQisFAOj3ei/F0PfLze3tGIZSSOfzEmHorgMOGINdrbr5SkVe7OwASoFFuwqVKrO3xaKVHB110yMjEkpBhyGgFBCG6LbbXm5qCrcqFXnx4cPvda3BAFz2+16333cYALwZH7eSluWm83l5BbMwBMIQt548gb+3FyczreH3+143CJyFkxOf/XlJqWzWTd+8Ka9gpjX0YAAdBGBRclcI7zIInMWTEx9AfBwAwLptW6lMxs0kk1J9/w7VboMD4JyDiNAxDK8rhLN4fBzXLK51xRiylQpSponW4SEoAokIxDk4EfRf9fI/0wszM27asuTFzk6cSkQQRBBCoEgkRzh310ol65pgI4IzuZz81miAhyE4Y7FECAHDMGAIgdumKYuGEUvYhm1bY1HyeaMBrnWc2DNNj4hQIJJXAkMIEBE+B4F3HASOGJuerqdyOfl1cxNcazAiMMbQNQyvJ4SjARBj7p1IciMSPUgkJO906uJnp3N0urt7De6ZpvfDMOLbXiuVHKGUO0kkb0QSzjmSQXDEAOBdNls3BoPnRIRhOu0NTNNZiHq+mrVSybqTSrkP83mZTCTwpdd7dX9/fyl+B+9zuVUQlYeJxNJCs/nP7/z67l2rnMnUU4Zx9Pjg4AUA/ALA8B6CbeY2WQAAAABJRU5ErkJggg==) no-repeat; width:16px; height:16px; float:right; margin:-5px -5px 0 0; cursor:pointer}
@@ -123,65 +135,61 @@ getUrlVar = function(key){
   return result && unescape(result[1]) || "";
 }
 
-var WS_SOCK;
-var WS_address;
-var WS_protocol;
-function websock_init(address, protocol) {
-  var error_try = 0;
-  var ws_timeout;
-
-  ws_status = function(str) {
+ws_status = function(str,color) {
     $(".ws_status").html(str);
-  }
-  function ws_log(str) {
-   $(".log").append(str+'<br />');
-   $(".log").scrollTop(9999);
-  }
-  function ws_reconnect() {
-    ws_status('Init');
-    clearTimeout(ws_timeout);
-    ws_timeout = null;
-   WS_SOCK = new WebSocket(WS_address, WS_protocol);
-  }
+    let tcolor="white";
+    let bcolor=color;
+    
+    if (color=="green"){
+        tcolor="lightgreen";
+        bcolor='green';
+    }
+    else if (color=="yellow"){
+        tcolor="blue";
+    }
+    else if (color=="red"){
+        tcolor="white";
+    }
+    $(".ws_status").css({'color':tcolor,'background-color': bcolor, });
+}
 
-  WS_address = 'ws://'+address+'/ws';
-  WS_protocol = protocol;
-  ws_status('Init');
-  WS_SOCK = new WebSocket(WS_address, WS_protocol);
-
-  WS_SOCK.onopen = function() {
-    ws_status('<span style="color: green;">WS Connected</span>');
-  };
-  WS_SOCK.onmessage = function(e) {
-    var d = jQuery.parseJSON(e.data);
-    if ('undefined' == typeof d.cmd) return;
-    switch(d.cmd) {
-    case 'logline':
-	ws_log(d.ch+': '+d.level+' '+d.date+' '+d.message);
-	break;
-    case 'info':
+infoUpdate = function(d){
 	$(".time").html(d.time);
 	$(".uptime").html(d.uptime);
 	$(".MainStatusStr").html(d.MainStatusStr);
+    putModeStat(d);
 	$(".SetPower").html(d.SetPower+' Вт.');
-	$("#new_power").val(d.SetPower);
-        $(".CurPower").html(d.CurPower+' Вт.');
-        $(".CurVolts").html(d.CurVolts+' В.');
-        $(".CurFreq").html(d.CurFreq+' Гц.');
-	$(".AlarmMode").html(d.AlarmMode);
+    if ($("#new_power").data("focused")==0) $("#new_power").val(d.SetPower);
+        $(".CurPower").html(d.CurPower+' Вт');
+        $(".CurVolts").html(d.CurVolts+' В');
+        $(".CurFreq").html(d.CurFreq+' Гц');
+        
+	if (typeof(d.AlarmMode) != "undefined"){
+        $(".AlarmMode").show();
+        $(".AlarmMode").html(d.AlarmMode);
+        $("#alarmStr").show();
+    } 
+    else {
+        $(".AlarmMode").html("");
+        $(".AlarmMode").hide();
+    }
+    
 	$(".WaterOn").html(d.WaterOn);
 	if (typeof(d.rect_t_stab) != "undefined") {
-		$(".rect_t_stab").html(d.rect_t_stab);
+        if ($(".new_rect_t_stab").data("focused")==0) $(".new_rect_t_stab").val(d.rect_t_stab);
+        $(".rect_t_stab").html(d.rect_t_stab);
 		$(".rect_t_stab_i").show();
 	} else {
 		$(".rect_t_stab_i").hide();
 	}
+    
 	if (typeof(d.rect_p_shim) != "undefined") {
 		$(".rect_p_shim").html(d.rect_p_shim);
 		$(".rect_p_shim_i").show();
 	} else {
 		$(".rect_p_shim_i").hide();
 	}
+    
 	if (typeof(d.rect_time_stab) != "undefined") {
 		$(".rect_time_stab").html(d.rect_time_stab);
 		$(".rect_time_stab_i").show();
@@ -194,6 +202,7 @@ function websock_init(address, protocol) {
 	} else  {
 		$(".rect_timer1_i").hide();
 	}
+    
 	if (eval(d.TempWaterIn)<0) $(".TempWaterIn").html("Нет данных");
 	else $(".TempWaterIn").html(d.TempWaterIn);
 	if (eval(d.TempWaterOut)<0) $(".TempWaterOut").html("Нет данных");
@@ -201,58 +210,88 @@ function websock_init(address, protocol) {
 	if (eval(d.WaterFlow)<0) $(".WaterFlow").html("Нет данных");
 	else $(".WaterFlow").html(d.WaterFlow);
 	$(".heap").html('heap: '+d.heap);
+    
+    set_bmd_data(d);
 
-	if (typeof(d.bmpTemperature) != "undefined") {
-		$(".bmpTemperature").html(" T: "+d.bmpTemperature+ " C");
-	}
-	if (typeof(d.bmpTruePressure) != "undefined") {
-		$(".bmpTruePressure").html(" P: "+d.bmpTruePressure+" mm.");
-	}
-
-	for (var i in d.sensors) {
-                var s = d.sensors[i];
-		$(".sens_"+s.id).html(s.temp+' C');
-        }
-	for (var i in d.klapans) {
-		var k = d.klapans[i];
-		var html;
-		if (eval(k.is_pwm)) {
-			if (eval(k.is_open)) html = "Открыт. ";
-			else html = "Закрыт. ";
-			html += "Шим режим "+k.pwm_time+"сек "+k.pwm_percent+" %";
-		} else {
-			if (eval(k.is_open)) html = "Открыт";
-			else html = "Закрыт";
-		}
-		$(".klp_status_"+k.id).html(html);
-
-		if (!eval($(".klp_shim_"+k.id).val())) $(".klp_shim_"+k.id).val(k.pwm_time);
-		if (!eval($(".klp_on_"+k.id).val())) $(".klp_on_"+k.id).val(k.pwm_percent);
-
-	}
-	if (0 == eval(d.MainStatus)) {
-		$('.i_start').show();
-		$('.i_end').hide();
-	} else if (100 == eval(d.MainStatus)) {
-		$('.i_start').show();
-		$('.i_end').hide();
-	} else {
-		$('.i_start').show();
-		$('.i_end').show();
-	}
-
-	break;
-   case 'mode':
-	$(".MainMode").val(d.MainMode);
-	break;
+    var t = $('.temp_sensors');
+    t.empty();
+    for (var i in d.sensors) {
+        var s = d.sensors[i];
+        t.append('<tr><td>['+s.type_str+'] '+s.descr+'</td><td class="sens_'+s.id+' bold">'+s.temp+' C</td><tr>');
     }
+        
+	for (var i in d.klapans) {
+        var k = d.klapans[i];
+        var html;
+        if (eval(k.is_pwm)) {
+                if (eval(k.is_open)) html = "Открыт. ";
+                else html = "Закрыт. ";
+                html += "Шим режим "+k.pwm_time+"сек "+k.pwm_percent+" %";
+        } else {
+                if (eval(k.is_open)) html = "Открыт";
+                else html = "Закрыт";
+        }
+        $(".klp_status_"+k.id).html(html);
+        if ($(".klp_shim_"+k.id).data("focused")==0) $(".klp_shim_"+k.id).val(k.pwm_time);
+        if ($(".klp_on_"+k.id).data("focused")==0) $(".klp_on_"+k.id).val(k.pwm_percent);
+    }
+}
+
+
+var WS_SOCK;
+var WS_address;
+var WS_protocol;
+function websock_init(address, protocol) {
+  var error_try = 0;
+  var ws_timeout;
+
+  function ws_log(str) {
+   $(".log").append(str+'<br />');
+   $(".log").scrollTop(9999);
+  }
+  
+  function ws_reconnect() {
+    ws_status('TRY',"yellow");
+    clearTimeout(ws_timeout);
+    ws_timeout = null;
+   WS_SOCK = new WebSocket(WS_address, WS_protocol);
+  }
+  
+  WS_address = 'ws://'+address+'/ws';
+  WS_protocol = protocol;
+  ws_status('Init',"yellow");
+  WS_SOCK = new WebSocket(WS_address, WS_protocol);
+
+  WS_SOCK.onopen = function() {
+    ws_status('OK',"green");
   };
+  
+  WS_SOCK.onmessage = function(e) {
+    var d = jQuery.parseJSON(e.data);
+    if ('undefined' == typeof d.cmd) return;
+    
+    time.text("0"); //reset the time of last message getting
+    
+    switch(d.cmd) {
+    case 'logline':
+        ws_log(d.ch+': '+d.level+' '+d.date+' '+d.message);
+        break;
+    case 'info':
+        infoUpdate(d);
+        break;
+   case 'mode':
+        $(".MainMode").val(d.MainMode);
+        break;
+   }
+  };
+  
   WS_SOCK.onclose = function() {
-    ws_status('<span class="red">WS disconnected</span>');
+    ws_status('OFF',"red");
     setTimeout(ws_reconnect, 1000);
   };
+  
   WS_SOCK.onerror = function() {
-    ws_status('<b class="red">WS error</b>');
+    ws_status('ERR',"red");
     setTimeout(ws_reconnect, 1000);
   };
 }
@@ -299,23 +338,25 @@ showStick = function(level,text) {
 
 }
 
-
-
-
 </script>
 </head>
 <body>
-<div style="background-color: #FFFFFF; background: #FFFFFF; margin: 5px auto;">
+<div style="background-color: var(--bgrd-color); background: var(--bgrd-color); margin: 5px auto;">
 <a id="top" accesskey="t"></a>
 <table class="header" style="width: 100%;"><tbody>
 
 <tr><td class="ta_l">
-<div class="ta_l"><span class="ws_status"></span> <span class="AlarmMode bold"></span></div>
+    <div class="ta_l">
+        <a>WS:<span class="ws_status" style="background-color:red; border-radius:6px; padding-left:4px;padding-right:4px; width:40px;"></span> <span style="margin-left:6px;">(<a class="timeLastWS">6</a> сек.)</span></a> 
+        <span class="AlarmMode bold"></span>
+    </div>
 <div class="ta_l"><span class="time"></span> up: <span class="uptime">0:0:0</span></div>
 <div class="ta_l MainModeStr bold"></div>
 <div class="ta_l bold"><span class="CurPower"></span>
-<span class="bmpTemperature"></span>
-<span class="bmpTruePressure"></span>
+<span class="bmpdata">
+    <a>T:<span class="bmpTemperature"></span></a>
+    <a>P:<span class="bmpTruePressure"></span></a>
+</span>    
 </div>
 </td></tr>
 <tr><td style="text-align: left; vertical-align: bottom; padding-top: 10px;">
@@ -342,7 +383,7 @@ showStick = function(level,text) {
 <option value="3">Ректификация</option>
 <option value="10">Тестирование клапанов</option>
 </select>
-<input type="button" id="sw_mode" onclick="switch_mode();" style="display: none;" value="Установить"/>
+<input type="button" id="sw_mode" onclick="switch_mode();" value="Установить"/>
 </td></tr>
 <tr><td>Состояние: </td><td><span class="MainStatusStr bold"></span>
 <input type="button" id="prev_status" onclick="prev_status();" value="Предыдущее"/>
@@ -360,7 +401,7 @@ showStick = function(level,text) {
 <div >
 <input class="menu" type="button" value=" -100 " onclick="setPower(-100);" />
 <input class="menu" type="button" value=" -10 " onclick="setPower(-10);" />
-<input class="menu" type="button" value="   0   " onclick="setPower(0);" />
+<input class="menu" type="button" value="  ВЫКЛ  " onclick="setPower(-1);" />
 <input class="menu" type="button" value=" +10 " onclick="setPower(10);" />
 <input class="menu" type="button" value=" +100 " onclick="setPower(100);" />
 </div>
@@ -415,7 +456,7 @@ showStick = function(level,text) {
 </div>
 
 <div class="modes testklp" style="text-align: left; width: 100%; overflow: auto; margin-bottom: 10px; display: none;">
-<table class="param" style="margin_left: 0;"><thead>
+<table class="param" style="margin-left:0;"><thead>
 <tr><th>Клапан</th><th>Назначение</th><th>Состояние</th><th>Период шим</th><th>процент вкл.</th><th colspan="2"></th></tr>
 </thead><tbody>
 <tr><td>#1 </td><td class="ta_l bold">Клапан воды</td><td class="klp_status_0"></td>
@@ -448,7 +489,6 @@ showStick = function(level,text) {
 
 </div>
 
-
 <div class="pages" id="net_setup" style="display: none;">
 <h2>Настройки сети</h2>
 <table class="param"><tbody>
@@ -475,9 +515,11 @@ showStick = function(level,text) {
 <td class="ta_l" style="border-top: 2px solid;"> <input id="wsPeriod" type="text" size="3" maxlength="4"> Сек.</td></tr>
 <tr><td class="ta_r">Time zone (GMT 0-12):</td>
 <td class="ta_l"> <input id="timezone" type="text" size="2" maxlength="3"></td></tr>
+<tr><td class="ta_r">zero detector shift:</td>
+<td class="ta_l"> <input id="z_shift" type="number" size="3" maxlength="3"></td></tr>
 
 <tr><td class="ta_c" colspan="2"><input type="button" id="net_save_cfg" onclick="save_network();" value="Сохранить настройки" /></td></tr>
-<tr><td colspan="2" id="net_saveok" class="ta_c" style="font-weidth: bold; color:green; display: none;">New setting will be effective after restart.</td></tr>
+<tr><td colspan="2" id="net_saveok" class="ta_c" style="font-weight: bold; color:green; display: none;">New setting will be effective after restart.</td></tr>
 <tr><td class="ta_c" colspan="2" class="ta_c" style="color: red; display: none;" id="net_save_fail">Update failed!!</td></tr>
 </tbody></table>
 </div>
@@ -615,11 +657,8 @@ showStick = function(level,text) {
 <input type="button" value="Вернутся" onclick="cancel_sens();"/>
 <input type="button" value="Сохранить" onclick="update_sens();"/>
 </td></tr>
-
 </tbody></table>
-
 </div>
-
 </div>
 
 <div class="pages" id="wifi_setup" style="display: none;">
@@ -689,9 +728,16 @@ showStick = function(level,text) {
 
 </div>
 <script>
+$( "input" ).focus(function() {
+  $( this ).data("focused", 1);
+});
+
+$( "input" ).blur(function() {
+  $( this ).data("focused", 0);
+});
 
 switch_mode = function(new_mode) {
-  $("#sw_mode").hide();
+  $("#sw_mode").prop("disabled", true);
   $.post('/setmainmode', {
         'new_mode': $('#new_mode').val(),
   }, function(d) {
@@ -701,7 +747,8 @@ switch_mode = function(new_mode) {
 }
 
 prev_status = function() {
-  $("#prev_status").hide();
+  //$("#prev_status").hide();
+  $("#prev_status").prop("disabled", true);
   $.post('/set_status', {
         'new': 0,
   }, function(d) {
@@ -711,7 +758,8 @@ prev_status = function() {
 }
 
 next_status = function() {
-  $("#next_status").hide();
+  //$("#next_status").hide();
+  $("#next_status").prop("disabled", true);
   $.post('/set_status', {
         'new': 1,
   }, function(d) {
@@ -734,12 +782,16 @@ EndProcess = function() {
 }
 
 setPower = function(delta) {
- var newPower = eval($('#new_power').val()) + delta;
- if ((newPower<0)||(delta==0)) newPower=0;
+ var newPower = eval($('#new_power').val());
+
+ if (isNaN(newPower)) newPower=0;
+ newPower = newPower + delta;
+ 
+ if ((newPower<0)||(delta<0)) newPower=0;
  $.post('/setpower', {
         'power': newPower,
  }, function(d) {
-	$('#new_power').val("");
+	$('#new_power').val(newPower);
 	showStick(d.err, d.msg);
 	disp_main();
   }, 'json');
@@ -789,91 +841,58 @@ klp_shim_on = function(id, n1, n2) {
  }, 'json');
 }
 
+prev_mode  = -1;
+prev_state = -1;
+
+putModeStat = function(d){
+    //if ($(".MainMode").data("focused")==0) {
+    let main_mode   = eval(d.MainMode);
+    let main_status = eval(d.MainStatus);
+    
+    if ((prev_mode==main_mode)&&(prev_state==main_status)) return;
+    
+    let disable_mode_change = (((main_mode == 2)||(main_mode == 3)) && ((main_status>0)&&(main_status<100)));
+    
+    $(".MainMode").val(main_mode);
+       
+	$(".MainModeStr").html(d.MainModeStr);
+	$(".MainStatusStr").html(d.MainStatusStr);
+	$(".ModeStr").html(d.MainModeStr);
+	$(".stateStr").html(d.MainStatusStr);
+    
+    if ((main_mode == 2)||(main_mode == 3)){ //rect or distill
+		$('#prev_status').show();
+		$('#next_status').show();
+		$('.i_start').show();
+		$('.i_end').show();
+        
+        $('.i_end').prop("disabled",   ((main_status==0)||(main_status==100))  );
+        $('.i_start').prop("disabled", (!((main_status==0)||(main_status==100))) );
+        $('#prev_status').prop("disabled", (main_status==0)  );
+        $('#next_status').prop("disabled", (main_status==100) );
+    }
+    else {
+		$('#prev_status').hide();
+		$('#next_status').hide();
+		$('.i_start').hide();
+		$('.i_end').hide();
+    }
+    
+    $(".MainMode").prop("disabled", disable_mode_change);
+    $("#sw_mode").prop("disabled",  disable_mode_change);
+}
+
 disp_main = function() {
   $(".pages").hide();
   $(".modes").hide();
 
   $.get('/maininfo', {}, function(d) {
-	$(".time").html(d.time);
-        $(".uptime").html(d.uptime);
-	$(".MainMode").val(d.MainMode);
-	$(".MainModeStr").html(d.MainModeStr);
-	$(".MainStatusStr").html(d.MainStatusStr);
-	$(".AlarmMode").html(d.AlarmMode);
-	$(".SetPower").html(d.SetPower+' Вт.');
-	$("#new_power").val(d.SetPower);
-	$(".CurPower").html(d.CurPower+' Вт.');
-	$(".CurVolts").html(d.CurVolts+' В.');
-	$(".CurFreq").html(d.CurFreq+' Гц.');
-	$(".WaterOn").html(d.WaterOn);
-	if (typeof(d.rect_t_stab) != "undefined") {
-		$(".rect_t_stab").html(d.rect_t_stab);
-		$(".rect_t_stab_i").show();
-	} else {
-		$(".rect_t_stab_i").hide();
-	}
-	if (typeof(d.rect_p_shim) != "undefined") {
-		$(".rect_p_shim").html(d.rect_p_shim);
-		$(".rect_p_shim_i").show();
-	} else {
-		$(".rect_p_shim_i").hide();
-	}
-	if (typeof(d.rect_time_stab) != "undefined") {
-		$(".rect_time_stab").html(d.rect_time_stab);
-		$(".rect_time_stab_i").show();
-	} else  {
-		$(".rect_time_stab_i").hide();
-	}
-	if (typeof(d.rect_timer1) != "undefined") {
-		$(".rect_timer1").html(d.rect_timer1);
-		$(".rect_timer1_i").show();
-	} else  {
-		$(".rect_timer1_i").hide();
-	}
-
-	if (eval(d.TempWaterIn)<0) $(".TempWaterIn").html("Нет данных");
-	else $(".TempWaterIn").html(d.TempWaterIn);
-	if (eval(d.TempWaterOut)<0) $(".TempWaterOut").html("Нет данных");
-	else $(".TempWaterOut").html(d.TempWaterOut);
-	if (eval(d.WaterFlow)<0) $(".WaterFlow").html("Нет данных");
-	else $(".WaterFlow").html(d.WaterFlow);
-
-	if (typeof(d.bmpTemperature) != "undefined") {
-		$(".bmpTemperature").html(" T: "+d.bmpTemperature+ " C");
-        }
-        if (typeof(d.bmpTruePressure) != "undefined") {
-                $(".bmpTruePressure").html(" P: "+d.bmpTruePressure+" mm.");
-        }
-	  
-	$("#sw_mode").show();
-	$("#prev_status").show();
-	$("#next_status").show();
-
+    infoUpdate(d);
+	//$("#sw_mode").show();
+	//$("#prev_status").show();
+	//$("#next_status").show();
 	if (extColdConnected) $(".extColdInfo").show();
-        var t = $('.temp_sensors');
-        t.empty();
-        for (var i in d.sensors) {
-                var s = d.sensors[i];
-		t.append('<tr><td>['+s.type_str+'] '+s.descr+'</td><td class="sens_'+s.id+' bold">'+s.temp+' C</td><tr>');
-
-        }
-	for (var i in d.klapans) {
-                var k = d.klapans[i];
-                var html;
-                if (eval(k.is_pwm)) {
-                        if (eval(k.is_open)) html = "Открыт. ";
-                        else html = "Закрыт. ";
-                        html += "Шим режим "+k.pwm_time+"сек "+k.pwm_percent+" %";
-                } else {
-                        if (eval(k.is_open)) html = "Открыт";
-                        else html = "Закрыт";
-                }
-                $(".klp_status_"+k.id).html(html);
-	        $(".klp_shim_"+k.id).val(k.pwm_time);
-	        $(".klp_on_"+k.id).val(k.pwm_percent);
-
-        }
-
+    
 	switch(eval(d.MainMode)) {
 	case 2:
 		$('.distill').show();
@@ -902,7 +921,8 @@ save_network = function () {
 	'smscPhones': $('#smscPhones').val(),
 	'useSmsc':useSmsc,
 	'wsPeriod': $('#wsPeriod').val(),
-	'timezone': $('#timezone').val()
+	'timezone': $('#timezone').val(),
+	'z_shift': $('#z_shift').val()
    }, function(d) {
 	$('#net_saveok').show();
    }, 'json')
@@ -927,6 +947,7 @@ disp_network = function () {
 	else $('#useSmsc').removeAttr('checked');
 	$('#wsPeriod').val(d.wsPeriod);
 	$('#timezone').val(d.timezone);
+	$('#z_shift').val(d.z_shift);
 
 	$("#passmatch").hide();
 	$("#saveok").hide();
@@ -1065,6 +1086,7 @@ cancel_sens = function() {
   $("#descr").val('');
   $("#talert").val('0');
 }
+
 update_sens = function() {
  $.post('/updatesens', {
         'id': Id,
@@ -1248,13 +1270,22 @@ _sysinfo = function() {
 	$(".totalBytes").html('Всего: '+d.totalBytes);
 	$(".heap").html('heap: '+d.heap);
 	$(".rReason").html(d.rReason);
+    set_bmd_data(d);
+  }, 'json');
+}
+
+set_bmd_data = function(d){
+    let show = false;
 	if (typeof(d.bmpTemperature) != "undefined") {
-		$(".bmpTemperature").html(" T: "+d.bmpTemperature+ " C");
+		$(".bmpTemperature").html(d.bmpTemperature);
+        show=true;
 	}
 	if (typeof(d.bmpTruePressure) != "undefined") {
-		$(".bmpTruePressure").html(" P: "+d.bmpTruePressure+" mm.");
+		$(".bmpTruePressure").html(d.bmpTruePressure);
+        show=true;
 	}
-  }, 'json');
+    if (show) $(".bmpdata").show();
+    else $(".bmpdata").hide();
 }
 
 do_reset = function() {
@@ -1297,6 +1328,21 @@ $(window).unload( function () {
 	WS_SOCK.close();
   }
 });
+
+const time = $('.timeLastWS');
+intervalId = setInterval(timerWSupdate, 1000);
+
+function timerWSupdate() {
+  const newTime = eval(time.text()) + 1;
+  time.text(newTime);
+  if(newTime > 6) {
+    ws_status("LOST","red");
+  }
+  else {
+    ws_status("OK","green");
+  }
+}
+
 </script>
 
 </body></html>
