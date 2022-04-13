@@ -146,6 +146,7 @@ extern klp_list Klp[MAX_KLP];		// Список клапанов.
 #define klp_sr    2			// Клапан отбора товарного спирта
 #define klp_diff   3			// выключение дифф-автомата
 
+extern volatile int zero_imp_shift;
 
 void myBeep(bool lng);		// Включаем бипер
 
@@ -178,8 +179,6 @@ void openKlp(int i);		// Открытие клапана воды
 void closeKlp(int i);		// Закрытие определенного клапана
 void startKlpPwm(int i, float topen, float tclose); // Запуск шима клапана
 
-//void valve_off(int valve_num);
-//void valve_on(int valve_num);
 void start_valve_PWMpercent(int valve_num, int period_sec, int percent_open);
 
 

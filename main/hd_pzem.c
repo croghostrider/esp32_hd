@@ -135,9 +135,6 @@ uint8_t PZEMv3_addr = PZEM_DEFAULT_ADDR;	// Device address
 uint8_t PZEM_Version = 0;			// Device version 3.0 in use ?
 
 
-
-
-
 /* Расчет CRC для pzem */
 static uint8_t PZEM_crc8(uint8_t *data, uint8_t sz)
 {

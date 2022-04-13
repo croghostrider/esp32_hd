@@ -47,6 +47,7 @@ vaiable_list NET_PARAMS[] =
 	{"useSmsc", 		VARIABLE_INT,	 0,	2,      "0",		NULL},
 	{"wsPeriod", 		VARIABLE_INT,	 0, 	60,	"5",		NULL},
 	{"timezone", 		VARIABLE_INT,	 -12,  12,	"3",		NULL},
+	{"z_shift", 		VARIABLE_INT,	 0,  300,	"55",		NULL},
 	{NULL}
 };
 

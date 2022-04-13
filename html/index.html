@@ -401,7 +401,11 @@ showStick = function(level,text) {
 <div >
 <input class="menu" type="button" value=" -100 " onclick="setPower(-100);" />
 <input class="menu" type="button" value=" -10 " onclick="setPower(-10);" />
+<<<<<<< HEAD
 <input class="menu" type="button" value="  ВЫКЛ  " onclick="setPower(-1);" />
+=======
+<input class="menu" type="button" value="   0   " onclick="setPower(-1);" />
+>>>>>>> refs/heads/master
 <input class="menu" type="button" value=" +10 " onclick="setPower(10);" />
 <input class="menu" type="button" value=" +100 " onclick="setPower(100);" />
 </div>
@@ -782,11 +786,15 @@ EndProcess = function() {
 }
 
 setPower = function(delta) {
+<<<<<<< HEAD
  var newPower = eval($('#new_power').val());
 
  if (isNaN(newPower)) newPower=0;
  newPower = newPower + delta;
  
+=======
+ var newPower = eval($('#new_power').val()) + delta;
+>>>>>>> refs/heads/master
  if ((newPower<0)||(delta<0)) newPower=0;
  $.post('/setpower', {
         'power': newPower,

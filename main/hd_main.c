@@ -71,6 +71,8 @@ License (MIT license):
 #define GPIO_OUTPUT_PIN_SEL  (1<<GPIO_BEEP)
 
 volatile int32_t Hpoint = HMAX;
+volatile int zero_imp_shift;
+
 
 #define TIMER_DIVIDER   80		/*!< Hardware timer clock divider */
 #define TIMER_SCALE (TIMER_BASE_CLK / TIMER_DIVIDER) /*!< used to calculate counter value */
@@ -311,6 +313,8 @@ void pzem_task(void *arg)
 
 	PZEM_init();
 
+	zero_imp_shift = getIntParam(NET_PARAMS, "z_shift");
+
 	vTaskDelay(1000/portTICK_PERIOD_MS);
 
 	while(1) {
@@ -392,7 +396,7 @@ void pzem_task(void *arg)
 		else	{ // CurPower>0
 			//--- number real watts on one percent of the voltage power
 			double WattsOn1PrcVoltagePwr =(double)(CurPower)/(double)(voltagePower);
-			//DBG("WattsOn1PrcVoltagePwr:%4.1f",WattsOn1PrcVoltagePwr);
+			DBG("WattsOn1PrcVoltagePwr:%4.1f",WattsOn1PrcVoltagePwr);
 			int calcHpoint;
 
 			if (errPercent>50){
@@ -408,13 +412,15 @@ void pzem_task(void *arg)
 			if (errP<0) increment=-abs(increment);
 
 			Hpoint += increment;
-			if (Hpoint >= MAX_HPOINT_VALUE ) {
-				Hpoint = MAX_HPOINT_VALUE;
+			//zero_imp_shift = getIntParam(NET_PARAMS, "z_shift");
+			DBG("===zshift:%d max_hpoint:%d",zero_imp_shift, HMAX-zero_imp_shift);
+			if (Hpoint >= (HMAX-zero_imp_shift) ) {
+				Hpoint = (HMAX-zero_imp_shift);
 			}
-			if (Hpoint<TRIAC_GATE_MAX_CYCLES) {
-				Hpoint=TRIAC_GATE_MAX_CYCLES;
+			if (Hpoint<zero_imp_shift) {
+				Hpoint=zero_imp_shift;
 			}
-			//DBG("===set:%d cur:%d hp:%d inc:%d",SetPower, CurPower, Hpoint, increment);
+			DBG("===set:%d cur:%d hp:%d inc:%d",SetPower, CurPower, Hpoint, increment);
 		}// triac angle correction, as CurPower>0
 	}//while(1)
 }

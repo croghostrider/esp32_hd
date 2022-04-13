@@ -455,6 +455,7 @@ int httpNetSetup(HttpdConnData *connData)
 		cJSON_AddItemToObject(ja, "useSmsc", cJSON_CreateNumber(getIntParam(NET_PARAMS, "useSmsc")));
 		cJSON_AddItemToObject(ja, "wsPeriod", cJSON_CreateNumber(wsPeriod));
 		cJSON_AddItemToObject(ja, "timezone", cJSON_CreateNumber(getIntParam(NET_PARAMS, "timezone")));
+		cJSON_AddItemToObject(ja, "z_shift", cJSON_CreateNumber(getIntParam(NET_PARAMS, "z_shift")));
 
 		char *r=cJSON_Print(ja);
 		httpdSend(connData, r, strlen(r));
@@ -477,6 +478,7 @@ int httpNetSetup(HttpdConnData *connData)
 		httpSecure = getIntParam(NET_PARAMS, "secure");
 		wsPeriod = getIntParam(NET_PARAMS, "wsPeriod");
 		setTimezone(getIntParam(NET_PARAMS, "timezone"));
+		zero_imp_shift = getIntParam(NET_PARAMS, "z_shift");
 		json_ok(connData);
 	}
 	return HTTPD_CGI_DONE;
