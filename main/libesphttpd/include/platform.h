@@ -10,6 +10,7 @@
 typedef struct RtosConnType RtosConnType;
 typedef RtosConnType* ConnTypePtr;
 typedef TimerHandle_t HttpdPlatTimerHandle;
-#define httpd_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define httpd_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define httpd_printf(fmt, ...)
 #define ICACHE_FLASH_ATTR
 #endif

@@ -121,9 +121,10 @@ int ICACHE_FLASH_ATTR cgiWebsocketSend(Websock *ws, char *data, int len, int fla
 
 //Broadcast data to all websockets at a specific url. Returns the amount of connections sent to.
 int ICACHE_FLASH_ATTR cgiWebsockBroadcast(char *resource, char *data, int len, int flags) {
+	if (! wsLock) return 0;
 	xSemaphoreTake(wsLock, portMAX_DELAY);
-	Websock *lw=llStart;
 	int ret=0;
+	Websock *lw=llStart;
 	while (lw!=NULL) {
 		if (strcmp(lw->conn->url, resource)==0) {
 			httpdConnSendStart(lw->conn);

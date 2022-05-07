@@ -1,4 +1,5 @@
 <!doctype html>
+<!--ver 0.7.4.4-->
 <html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -16,11 +17,18 @@
 .va_m { vertical-align: middle; }
 .va_b { vertical-align: bottom; }
 .red { color: red; }
-.bold { font-weight: bold; }
+.bold { font-weight: bold; margin:0px;}
+
+.ta_subtitle {
+    font-weight: bold; 
+    margin:0px;
+    background-color:rgb(242, 242, 242);
+    text-align: center;
+}
 
 :root {
   --text-color:#000000;
-  --bgrd-color:#FFFFFF
+  --bgrd-color:#FFFFFF;
   --frame-brd-color: lightgray;
 }
 
@@ -46,12 +54,13 @@ h1 {
         vertical-align: middle; text-align: center;
 }
 h2, h3, h4 { text-align: center; font-weight: bold; color: var(--text-color); background-color: transparent; }
+h3 {margin:0;}
 .header { margin: 0px 0px 2px 0px; overflow: hidden; }
 table.header {text-align: center; vertical-align: middle; 
 	background-color: #dddddd; color: #990000; width: 100%;
 	height: 55px; padding-left: 1px; padding-right: 1px;
 	border-spacing: 3px; border-collapse: separate;
-	margin-left:auto; margin-right:auto; margin-bottom: 25px;
+	margin-left:auto; margin-right:auto; margin-bottom: 5px;
 }
 table.header tr, table.header td, table.header th
 {
@@ -99,14 +108,79 @@ input.buttons {
 .last {background-color:#CBECFA; border:1px solid #15A6E3;}
 .exit{background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACpElEQVR4nHWTTU8TQRzGn5n/rNtXuxVoWbSmJcYXwGQuFBNP+w0w8AEkPXHDT4LfoF7lAL6QXiDZIF4IlyXeCVEogqFu6Yvbmtnx4LIRo//jJL/fMzPPDEM0Xq22OvT9cvPjx6X5szMf/5gN27bsubm6Gg6PnjYaLwCAA8Cn5eV6YXZ2hTM2nxoddd+Mj1v/gV3r3r153WqtbD16VAcA5tVqq4XZ2ZXm1haGrRa0Uuien3v9dtt5dnrqA8D6xIRlV6tufnJSXuzuQisFAOj3ei/F0PfLze3tGIZSSOfzEmHorgMOGINdrbr5SkVe7OwASoFFuwqVKrO3xaKVHB110yMjEkpBhyGgFBCG6LbbXm5qCrcqFXnx4cPvda3BAFz2+16333cYALwZH7eSluWm83l5BbMwBMIQt548gb+3FyczreH3+143CJyFkxOf/XlJqWzWTd+8Ka9gpjX0YAAdBGBRclcI7zIInMWTEx9AfBwAwLptW6lMxs0kk1J9/w7VboMD4JyDiNAxDK8rhLN4fBzXLK51xRiylQpSponW4SEoAokIxDk4EfRf9fI/0wszM27asuTFzk6cSkQQRBBCoEgkRzh310ol65pgI4IzuZz81miAhyE4Y7FECAHDMGAIgdumKYuGEUvYhm1bY1HyeaMBrnWc2DNNj4hQIJJXAkMIEBE+B4F3HASOGJuerqdyOfl1cxNcazAiMMbQNQyvJ4SjARBj7p1IciMSPUgkJO906uJnp3N0urt7De6ZpvfDMOLbXiuVHKGUO0kkb0QSzjmSQXDEAOBdNls3BoPnRIRhOu0NTNNZiHq+mrVSybqTSrkP83mZTCTwpdd7dX9/fyl+B+9zuVUQlYeJxNJCs/nP7/z67l2rnMnUU4Zx9Pjg4AUA/ALA8B6CbeY2WQAAAABJRU5ErkJggg==) no-repeat; width:16px; height:16px; float:right; margin:-5px -5px 0 0; cursor:pointer}
 
-.klp_inp {
-	border: #3C3C3C 1px solid;
-	height: 14px;
-        font-size: 10pt;
-	margin-left: 10px;
-        border-spacing: 1px;
-        border-collapse: separate;
+.fpanel {
+display:none;
+height: 500px; /* высота нашего блока */
+width: 350px; /* ширина нашего блока */
+background: #fff; /* цвет фона, белый */
+border: 1px solid #C1C1C1; /* размер и цвет границы блока */
+overflow-x: scroll; /* прокрутка по горизонтали */
+overflow-y: scroll; /* прокрутка по вертикали */
 }
+
+/*--------- переключатель-движок-------*/
+/*
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 20px;
+  margin-right: 2px;
+}
+
+.switch input {display:none;}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: gray;
+  -webkit-transition: .1s;
+  transition: .1s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  -webkit-transition: .1s;
+  transition: .1s;
+}
+input:checked + .slider {
+  background-color: blue;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(29px);
+  -ms-transform: translateX(29px);
+  transform: translateX(29px);
+}
+
+input[alt] {
+  background-color: #0040ffe0;
+  color: white;
+  font-weight: bold;
+}    
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+*/
+/*-переключатель-движок->>*/
 </style>
 
 <script>
@@ -158,7 +232,9 @@ infoUpdate = function(d){
 	$(".uptime").html(d.uptime);
 	$(".MainStatusStr").html(d.MainStatusStr);
     putModeStat(d);
-	$(".SetPower").html(d.SetPower+' Вт.');
+	$(".SetPower").html(d.SetPower);
+    $(".SetPower").data("power", d.SetPower);
+    
     if ($("#new_power").data("focused")==0) $("#new_power").val(d.SetPower);
         $(".CurPower").html(d.CurPower+' Вт');
         $(".CurVolts").html(d.CurVolts+' В');
@@ -212,31 +288,33 @@ infoUpdate = function(d){
 	$(".heap").html('heap: '+d.heap);
     
     set_bmd_data(d);
+    update_sensor_temp(d);
+    display_valves(d.klapans);
+}
 
+create_sensor_table = function(d){
     var t = $('.temp_sensors');
     t.empty();
     for (var i in d.sensors) {
         var s = d.sensors[i];
         t.append('<tr><td>['+s.type_str+'] '+s.descr+'</td><td class="sens_'+s.id+' bold">'+s.temp+' C</td><tr>');
     }
-        
-	for (var i in d.klapans) {
-        var k = d.klapans[i];
-        var html;
-        if (eval(k.is_pwm)) {
-                if (eval(k.is_open)) html = "Открыт. ";
-                else html = "Закрыт. ";
-                html += "Шим режим "+k.pwm_time+"сек "+k.pwm_percent+" %";
-        } else {
-                if (eval(k.is_open)) html = "Открыт";
-                else html = "Закрыт";
-        }
-        $(".klp_status_"+k.id).html(html);
-        if ($(".klp_shim_"+k.id).data("focused")==0) $(".klp_shim_"+k.id).val(k.pwm_time);
-        if ($(".klp_on_"+k.id).data("focused")==0) $(".klp_on_"+k.id).val(k.pwm_percent);
-    }
 }
 
+update_sensor_temp=function(d){
+    for (var i in d.sensors) {
+        var s = d.sensors[i];
+        var h = s.temp+' C';
+        if (eval(s.temp)>=s.talert){
+          $('.sens_'+s.id).css({'color':'white','background-color':'red'});
+          h += ' [ALARM:'+ s.talert + ' C]';
+        }
+        else
+          $('.sens_'+s.id).css({'color':'inherit','background-color': 'inherit'});
+        
+        $('.sens_'+s.id).html(h);
+    }
+}
 
 var WS_SOCK;
 var WS_address;
@@ -270,7 +348,7 @@ function websock_init(address, protocol) {
     var d = jQuery.parseJSON(e.data);
     if ('undefined' == typeof d.cmd) return;
     
-    time.text("0"); //reset the time of last message getting
+    time.text("0"); //reset the time of last WS message
     
     switch(d.cmd) {
     case 'logline':
@@ -278,6 +356,7 @@ function websock_init(address, protocol) {
         break;
     case 'info':
         infoUpdate(d);
+        if ((!alarm_sound_off) && (d.Alarm>0)) alarm_beep();
         break;
    case 'mode':
         $(".MainMode").val(d.MainMode);
@@ -371,119 +450,174 @@ showStick = function(level,text) {
 
 <div class="wrapper"><div class="content" >
 
+<div class="multiwin" style="display:flex">
+<div style="text-align: left; overflow: auto; margin-bottom: 10px;">
 <div class="pages" id="main_div" style="display: none;">
-<div style="text-align: left; width: 100%; overflow: auto; margin-bottom: 10px;">
-
 <table>
 <tbody>
-<tr><td>Режим: </td><td><select class="MainMode" name="MainMode" id="new_mode">
-<option value="0">Мониторинг</option>
-<option value="1">Регулятор мощности</option>
-<option value="2">Дистилляция</option>
-<option value="3">Ректификация</option>
-<option value="10">Тестирование клапанов</option>
-</select>
-<input type="button" id="sw_mode" onclick="switch_mode();" value="Установить"/>
+<tr><td>Режим: </td><td>
+    <select class="MainMode" name="MainMode" id="new_mode">
+        <option value="0">Мониторинг</option>
+        <option value="1">Регулятор мощности</option>
+        <option value="2">Дистилляция</option>
+        <option value="3">Ректификация</option>
+        <option value="10">Тестирование клапанов</option>
+    </select>
+    <input type="button" id="sw_mode" onclick="switch_mode();" value="Установить"/>
 </td></tr>
 <tr><td>Состояние: </td><td><span class="MainStatusStr bold"></span>
 <input type="button" id="prev_status" onclick="prev_status();" value="Предыдущее"/>
 <input type="button" id="next_status" onclick="next_status();" value="Следующее"/>
 
 </td></tr>
-<tr><td>Авария: </td><td class="AlarmMode bold"></td></tr>
+<tr>
+    <td>
+    <div style="display:flex;align-items: center;">
+    Авария:
+        <!--<img src="pic1.png" height="30px" width="30px" style="margin-left:8px;margin-right:2px">-->
+        <label class="switch" > <input id="alarmsound" type="checkbox"> <span class="slider"> </span>  </label>
+        <img src="pic2.png" height="30px" width="30px" style="margin-right:12px">
+    </div>
+    </td>
+    <td class="AlarmMode bold"></td>
+</tr>
+</tbody>
+</table>
+
+<table class="power">
+<tbody>
 <tr><td>Текущая мощность: </td><td class="CurPower bold"></td></tr>
 <tr><td>Сеть: </td ><td class="bold"><span class="CurVolts"></span> <span class="CurFreq"></span></td></tr>
-<tr><td>Заданая мощность: </td><td><span class="SetPower bold"></span>
+<tr><td>Заданая мощность: </td><td><span class="SetPower bold"></span> Вт
 <input style="margin-left: 10px;" type="text" size="6" maxlength="8" name="new_power" id="new_power" />
 <input class="menu" type="button" value="установить" onclick="setPower(0);" />
 </td></tr>
 <tr><td colspan="2" class="ta_l">
-<div >
-<input class="menu" type="button" value=" -100 " onclick="setPower(-100);" />
-<input class="menu" type="button" value=" -10 " onclick="setPower(-10);" />
-<<<<<<< HEAD
-<input class="menu" type="button" value="  ВЫКЛ  " onclick="setPower(-1);" />
-=======
-<input class="menu" type="button" value="   0   " onclick="setPower(-1);" />
->>>>>>> refs/heads/master
-<input class="menu" type="button" value=" +10 " onclick="setPower(10);" />
-<input class="menu" type="button" value=" +100 " onclick="setPower(100);" />
-</div>
+    <div>
+    <input class="menu" type="button" value=" -100 " onclick="setPower(-100);" />
+    <input class="menu" type="button" value=" -10 " onclick="setPower(-10);" />
+    <input class="menu" type="button" value="  ВЫКЛ  " onclick="sendPower(0);" />
+    <input class="menu" type="button" value=" +10 " onclick="setPower(10);" />
+    <input class="menu" type="button" value=" +100 " onclick="setPower(100);" />
+    </div>
 </td></tr>
 </tbody>
+</table>
+
+<table>
 <tbody class="temp_sensors"></tbody>
+<tbody>
+    <tr class="extColdInfo" style="display: none;"><td>Охлаждение: </td><td class="WaterOn bold"></td></tr>
+    <tr class="extColdInfo" style="display: none;"><td>T охлаждения вход: </td><td class="TempWaterIn bold"></td></tr>
+    <tr class="extColdInfo" style="display: none;"><td>T охлаждения выход: </td><td class="TempWaterOut bold"></td></tr>
+    <tr class="extColdInfo" style="display: none;"><td>Поток воды: </td><td class="WaterFlow bold"></td></tr>
+</tbody>
+
+<tr>
+<td>
+    <a>Клапан воды:</a>
+    <p class="klp_pwm_0 bold"></p>
+</td><td>
+    <a class="klp_status_0 bold"></a>
+    <input type="button" onclick="klp_on(0);" style="margin-left: 10px; color: green;" value="On" />
+    <input type="button" onclick="klp_off(0);" style="margin-left: 10px; color:red;" value="Off" />
+    <input class="klp_inp klp_shim_0" type="text" id="k_shim_0" maxlength="5" size="3" value="0" /> сек.
+    <input class="klp_inp klp_on_0" type="text" id="k_on_0" maxlength="5" size="3" value="0" />%
+    <input style="margin-left: 10px;" type="button" onclick="klp_shim_on(0, 'k_shim_0', 'k_on_0');" value="Шим" />
+</td></tr>
+
+<tr><td>
+    <a>Клапан голов/хвостов:</a>
+    <p class="klp_pwm_1 bold"></p>
+</td><td>
+    <a class="klp_status_1 bold"></a>
+    <input type="button" onclick="klp_on(1);" style="margin-left: 10px; color: green;" value="On" />
+    <input type="button" onclick="klp_off(1);" style="margin-left: 10px; color:red;" value="Off" />
+    <input class="klp_inp klp_shim_1" type="text" id="k_shim_1" maxlength="5" size="3" value="0" /> сек.
+    <input class="klp_inp klp_on_1" type="text" id="k_on_1" maxlength="5" size="3" value="0" />%
+    <input style="margin-left: 10px;" type="button" onclick="klp_shim_on(1, 'k_shim_1', 'k_on_1');" value="Шим" />
+</td></tr>
+
+<tr><td>
+    <a>Клапан продукта:</a>
+    <p class="klp_pwm_2 bold"></p>
+</td><td>
+    <a class="klp_status_2 bold"></a>
+    <input type="button" onclick="klp_on(2);" style="margin-left: 10px; color: green;" value="On" />
+    <input type="button" onclick="klp_off(2);" style="margin-left: 10px; color:red;" value="Off" />
+    <input class="klp_inp klp_shim_2" type="text" id="k_shim_2" maxlength="5" size="3" value="0" /> сек.
+    <input class="klp_inp klp_on_2" type="text" id="k_on_2" maxlength="5" size="3" value="0" />%
+    <input style="margin-left: 10px;" type="button" onclick="klp_shim_on(2, 'k_shim_2', 'k_on_2');" value="Шим" />
+</td></tr>
+
+<tr><td>
+    <a>Клапан 4:</a>
+    <p class="klp_pwm_3 bold"></p>
+</td><td>
+    <a class="klp_status_3 bold"></a>
+    <input type="button" onclick="klp_on(3);" style="margin-left: 10px; color: green;" value="On" />
+    <input type="button" onclick="klp_off(3);" style="margin-left: 10px; color:red;" value="Off" />
+    <input class="klp_inp klp_shim_3" type="text" id="k_shim_3" maxlength="5" size="3" value="0" /> сек.
+    <input class="klp_inp klp_on_3" type="text" id="k_on_3" maxlength="5" size="3" value="0" />%
+    <input style="margin-left: 10px;" type="button" onclick="klp_shim_on(3, 'k_shim_3', 'k_on_3');" value="Шим" />
+</td></tr>
+<table>
 
 <tbody>
-<tr class="extColdInfo" style="display: none;"><td>Охлаждение: </td><td class="WaterOn bold"></td></tr>
-<tr class="extColdInfo" style="display: none;"><td>T охлаждения вход: </td><td class="TempWaterIn bold"></td></tr>
-<tr class="extColdInfo" style="display: none;"><td>T охлаждения выход: </td><td class="TempWaterOut bold"></td></tr>
-<tr class="extColdInfo" style="display: none;"><td>Поток воды: </td><td class="WaterFlow bold"></td></tr>
-
-<tr><td>Клапан воды: </td><td><span class="klp_status_0 bold"></span>
-<input type="button" onclick="klp_on(0);" style="margin-left: 10px; color: green;" value="On" />
-<input type="button" onclick="klp_off(0);" style="margin-left: 10px; color:red;" value="Off" />
-<input class="klp_inp klp_shim_0" type="text" id="k_shim_0" maxlength="4" size="4" value="0" /> сек.
-<input class="klp_inp klp_on_0" type="text" id="k_on_0" maxlength="4" size="4" value="0" />%
-<input style="margin-left: 10px;" type="button" onclick="klp_shim_on(0, 'k_shim_0', 'k_on_0');" value="Шим" />
-</td></tr>
-
-<tr><td>Клапан голов/хвостов: </td><td><span class="klp_status_1 bold"></span>
-<input type="button" onclick="klp_on(1);" style="margin-left: 10px; color: green;" value="On" />
-<input type="button" onclick="klp_off(1);" style="margin-left: 10px; color:red;" value="Off" />
-<input class="klp_inp klp_shim_1" type="text" id="k_shim_1" maxlength="4" size="4" value="0" /> сек.
-<input class="klp_inp klp_on_1" type="text" id="k_on_1" maxlength="4" size="4" value="0" />%
-<input style="margin-left: 10px;" type="button" onclick="klp_shim_on(1, 'k_shim_1', 'k_on_1');" value="Шим" />
-</td></tr>
-<tr><td>Клапан продукта: </td><td><span class="klp_status_2 bold"></span>
-<input type="button" onclick="klp_on(2);" style="margin-left: 10px; color: green;" value="On" />
-<input type="button" onclick="klp_off(2);" style="margin-left: 10px; color:red;" value="Off" />
-<input class="klp_inp klp_shim_2" type="text" id="k_shim_2" maxlength="4" size="4" value="0" /> сек.
-<input class="klp_inp klp_on_2" type="text" id="k_on_2" maxlength="4" size="4" value="0" />%
-<input style="margin-left: 10px;" type="button" onclick="klp_shim_on(2, 'k_shim_2', 'k_on_2');" value="Шим" />
-</td></tr>
-<tr><td>Клапан 4: </td><td><span class="klp_status_3 bold"></span>
-<input type="button" onclick="klp_on(3);" style="margin-left: 10px; color: green;" value="On" />
-<input type="button" onclick="klp_off(3);" style="margin-left: 10px; color:red;" value="Off" />
-<input class="klp_inp klp_shim_3" type="text" id="k_shim_3" maxlength="4" size="4" value="0" /> сек.
-<input class="klp_inp klp_on_3" type="text" id="k_on_3" maxlength="4" size="4" value="0" />%
-<input style="margin-left: 10px;" type="button" onclick="klp_shim_on(3, 'k_shim_3', 'k_on_3');" value="Шим" />
-</td></tr>
-
-<tr class="rect_time_stab_i"><td>Время стабилизации: </td><td class="bold rect_time_stab"></td></tr>
+<tr class="rect_time_stab_i">
+    <td>Время стабилизации: </td><td class="bold rect_time_stab"></td>
+</tr>
 <tr class="rect_timer1_i"><td>Таймер ре-стабилизации: </td><td class="bold rect_timer1"></td></tr>
-<tr class="rect_t_stab_i"><td>Температура стабилизации: </td><td class="bold rect_t_stab"></td></tr>
-<tr class="rect_p_shim_i"><td>Шим отбора: </td><td class="bold rect_p_shim"></td></tr>
+<tr class="rect_t_stab_i">
+    <td>Температура стабилизации: </td>
+    <td class="bold rect_t_stab"></td>
+    <td>
+        <input class="tstab_inp" type="text" id="tstab" maxlength="5" size="3" value=""/>
+        <input type="button" onclick="setTstab();" value="SET" style="margin-left: 10px;" />
+    </td>
+</tr>
+<tr class="rect_p_shim_i">
+    <td>ШИМ отбора: </td>
+    <td class="bold rect_p_shim"></td>
+    <!--
+    <td>
+        <input class="pwmSr_inp" type="text" id="pwmSr" maxlength="3" size="3" value=""/>
+        <input type="button" onclick="setPWMsr();" value="SET" style="margin-left: 10px;" />
+    </td>-->
+</tr>
 </tbody></table>
-
-<input type="button" class="i_start" value="Запустить" style="display: none; background: #4040ff; display: none;" onclick="StartProcess();" />
-<input type="button" class="i_end" value="Закончить" style="background: #ff4040; display: none;" onclick="EndProcess();" />
+    <div>
+        <input type="button" class="i_start bold" value="ПУСК" style="display: none; background: rgba(87, 181, 115, 0.26); width: 120px;" onclick="StartProcess();" />
+        <input type="button" class="i_end bold" value="СТОП" style="background:rgb(225, 201, 201); display: none; width: 120px;" onclick="EndProcess();" />
+    <div>
 </div>
+<!-- main div-->
 
 <div class="modes testklp" style="text-align: left; width: 100%; overflow: auto; margin-bottom: 10px; display: none;">
 <table class="param" style="margin-left:0;"><thead>
 <tr><th>Клапан</th><th>Назначение</th><th>Состояние</th><th>Период шим</th><th>процент вкл.</th><th colspan="2"></th></tr>
 </thead><tbody>
 <tr><td>#1 </td><td class="ta_l bold">Клапан воды</td><td class="klp_status_0"></td>
-<td class="ta_l"><input type="text" class="klp_shim_0" id="klp_shim_0" maxlength="4" size="4" value="10"/> сек.</td>
-<td class="ta_l"><input type="text" class="klp_on_0" id="klp_on_0" maxlength="4" size="4" value="50"/> %</td>
+<td class="ta_l"><input type="text" class="klp_shim_0" id="klp_shim_0" maxlength="5" size="3" value="10"/> сек.</td>
+<td class="ta_l"><input type="text" class="klp_on_0" id="klp_on_0" maxlength="5" size="3" value="50"/> %</td>
 <td><input type="button" onclick="klp_on(0);" style="color: green;" value="Включить" />
 <input type="button" onclick="klp_off(0);" style="color:red;" value="Выключить" /></td>
 <td><input type="button" onclick="klp_shim_on(0,'klp_shim_0','klp_on_0');" value="Активировать Шим" /></td></tr>
 <tr><td>#2 </td><td class="ta_l bold">Клапан голов/хвостов</td><td class="klp_status_1"></td>
-<td class="ta_l"><input type="text" class="klp_shim_1" id="klp_shim_1" maxlength="4" size="4" value="10"/> сек.</td>
-<td class="ta_l"><input type="text" class="klp_on_1" id="klp_on_1" maxlength="4" size="4" value="50"/> %</td>
+<td class="ta_l"><input type="text" class="klp_shim_1" id="klp_shim_1" maxlength="5" size="3" value="10"/> сек.</td>
+<td class="ta_l"><input type="text" class="klp_on_1" id="klp_on_1" maxlength="5" size="3" value="50"/> %</td>
 <td><input type="button" onclick="klp_on(1);" style="color: green;" value="Включить" />
 <input type="button" onclick="klp_off(1);" style="color:red;" value="Выключить" /></td>
 <td><input type="button" onclick="klp_shim_on(1,'klp_shim_1','klp_on_1');" value="Активировать Шим" /></td></tr>
 <tr><td>#3 </td><td class="ta_l bold">Клапан продукта</td><td class="klp_status_2"></td>
-<td class="ta_l"><input type="text" class="klp_shim_2" id="klp_shim_2" maxlength="4" size="4" value="10"/> сек.</td>
-<td class="ta_l"><input type="text" class="klp_on_2" id="klp_on_2" maxlength="4" size="4" value="50"/> %</td>
+<td class="ta_l"><input type="text" class="klp_shim_2" id="klp_shim_2" maxlength="5" size="3" value="10"/> сек.</td>
+<td class="ta_l"><input type="text" class="klp_on_2" id="klp_on_2" maxlength="5" size="3" value="50"/> %</td>
 <td><input type="button" onclick="klp_on(2);" style="color: green;" value="Включить" />
 <input type="button" onclick="klp_off(2);" style="color:red;" value="Выключить" /></td>
 <td><input type="button" onclick="klp_shim_on(2,'klp_shim_2','klp_on_2');" value="Активировать Шим" /></td></tr>
 <tr><td>#4 </td><td class="ta_l bold">Дополнительный</td><td class="klp_status_3"></td>
-<td class="ta_l"><input type="text" class="klp_shim_3" id="klp_shim_3" maxlength="4" size="4" value="10"/> сек.</td>
-<td class="ta_l"><input type="text" class="klp_on_3" id="klp_on_3" maxlength="4" size="4" value="50"/> %</td>
+<td class="ta_l"><input type="text" class="klp_shim_3" id="klp_shim_3" maxlength="5" size="3" value="10"/> сек.</td>
+<td class="ta_l"><input type="text" class="klp_on_3" id="klp_on_3" maxlength="5" size="3" value="50"/> %</td>
 <td><input type="button" onclick="klp_on(3);" style="color: green;" value="Включить" />
 <input type="button" onclick="klp_off(3);" style="color:red;" value="Выключить" /></td>
 <td><input type="button" onclick="klp_shim_on(3,'klp_shim_3','klp_on_3');" value="Активировать Шим" /></td></tr>
@@ -491,6 +625,7 @@ showStick = function(level,text) {
 </div>
 
 
+</div>
 </div>
 
 <div class="pages" id="net_setup" style="display: none;">
@@ -529,100 +664,125 @@ showStick = function(level,text) {
 </div>
 
 <div class="pages" id="param_setup" style="display: none;">
-<table class="param"><tbody>
-<tr><td class="ta_r">Номинальная мощность ТЭНов: </td>
-<td class="ta_l"><input id="maxPower" type="text" size="5" maxlength="8"> Вт.</td></tr>
-<tr><td class="ta_r">Мощность в режиме регулятора мощности: </td>
-<td class="ta_l"><input id="ustPowerReg" type="text" size="5" maxlength="8"> Вт.</td></tr>
-<tr><td class="ta_r">Температура окончания режима разгона: </td>
-<td class="ta_l"><input id="tempEndRectRazgon" type="text" size="4" maxlength="4"> C</td></tr>
-<tr><td class="ta_r">Мощность ректификации: </td>
-<td class="ta_l"><input id="powerRect" type="text" size="5" maxlength="8"> Вт.</td></tr>
-<tr><td class="ta_r">Окончание отбора голов(+Т куба,- Время в минутах): </td>
-<td class="ta_l"><input id="tEndRectOtbGlv" type="text" size="6" maxlength="6"> C</td></tr>
-<tr><td class="ta_r">Период для шим'a отбора голов: </td>
-<td class="ta_l"><input id="timeChimRectOtbGlv" type="text" size="4" maxlength="4"> Сек</td></tr>
-<tr><td class="ta_r">Процент ШИМ отбора голов: </td>
-<td class="ta_l"><input id="procChimOtbGlv" type="text" size="3" maxlength="3"> %</td></tr>
-<tr><td class="ta_r">Минимальный процент ШИМ'а отбора СР: </td>
-<td class="ta_l"><input id="minProcChimOtbSR" type="text" size="3" maxlength="3"> %</td></tr>
-<tr><td class="ta_r">Начальный процент ШИМ отбора СР: </td>
-<td class="ta_l"><input id="beginProcChimOtbSR" type="text" size="3" maxlength="3"> %</td></tr>
-<tr><td class="ta_r">Период для шим'a отбора СР: </td>
-<td class="ta_l"><input id="timeChimRectOtbSR" type="text" size="4" maxlength="4"> Сек.</td></tr>
-<tr><td class="ta_r">Дельта температуры для ректификации: </td>
-<td class="ta_l"><input id="tempDeltaRect" type="text" size="4" maxlength="4"> C</td></tr>
-<tr><td class="ta_r">Температура окончания отбора СР(+Ткуб,-ТTube20): </td>
-<td class="ta_l"><input id="tempEndRectOtbSR" type="text" size="5" maxlength="5"/> C</td></tr>
-<tr><td class="ta_r">Температура в кубе, при которой прекращается ректификация: </td>
-<td class="ta_l"><input id="tempEndRect" type="text" size="4" maxlength="4" /> C</td></tr>
-<tr><td class="ta_r">Поправка для датчика давления: </td>
-<td class="ta_l"><input id="p_MPX5010" type="text" size="4" maxlength="4"></td></tr>
-<tr><td class="ta_r">Время стабилизации колонны: </td>
-<td class="ta_l"><input id="timeStabKolonna" type="text" size="6" maxlength="6" /> Сек.</td></tr>
-<tr><td class="ta_r">Таймаут для повторной стабилизации колонны: </td>
-<td class="ta_l"><input id="timeRestabKolonna" type="text" size="8" maxlength="8"> Сек.</td></tr>
+    <table class="param"><tbody>
+        <tr><td colspan="2" class="ta_l" style="background-color: var(--frame-brd-color);"><h3>Общие настройки</h3></td></tr>
 
-<tr><td class="ta_r">Уровень проводимости, меньше которого переходим к СР: </td>
-<td class="ta_l"><input id="urovenProvodimostSR" type="text" size="6" maxlength="6" /></td></tr>
-<tr><td class="ta_r">Количество значений в таблице обучения ШИМ: </td>
-<td class="ta_l"><input id="cntCHIM" type="text" size="8" maxlength="8" /></td></tr>
-<tr><td class="ta_r">Шаг ушеньшения % ШИМ'a при отборе СР: </td>
-<td class="ta_l"><input id="decrementCHIM" type="text" size="3" maxlength="3" /> %</td></tr>
-<tr><td class="ta_r">Шаг увеличения % ШИМ'a при отборе СР: </td>
-<td class="ta_l"><input id="incrementCHIM" type="text" size="3" maxlength="3" /> %</td></tr>
-<tr><td class="ta_r">Макс время стабилизации до увеличения ШИМ'а СР: </td>
-<td class="ta_l"><input id="timeAutoIncCHIM" type="text" size="5" maxlength="5"> Сек</td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Регулятор-стабилизатор</td></tr>
+        <tr><td class="ta_r">Не используется: </td> <td class="ta_l"><input id="no_power" type="checkbox" value=1></td></tr>
+        <tr><td class="ta_r">Номинальная мощность ТЭНов: </td><td class="ta_l"><input id="maxPower" type="text" size="5" maxlength="8"> Вт.</td></tr>
+        <tr><td class="ta_r">PZEM протокол v.30 (modbus RTU) <span class="red">*</span>: </td><td class="ta_l"><input id="pzemVersion" type="checkbox" value=1>Да</td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Звук</td></tr>
+        <tr><td class="ta_r">Тихий режим работы клапанов: </td> <td class="ta_l"><input id="klpSilentNode" type="checkbox" value=1></td></tr>
+        <tr><td class="ta_r">Звук при переключении режимов: </td> <td class="ta_l"><input id="beepChangeState" type="checkbox" value=1></td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Сервис</td></tr>
+        <tr><td class="ta_r">Gpio включенный во время процесса (0 - нет): </td><td class="ta_l"><input id="processGpio" type="text" size="8" maxlength="8" value="0"></td></tr>
+        <tr><td class="ta_r">Выход на клапан воды питает насос: </td> <td class="ta_l"><input id="klp1_isPWM" type="checkbox" value=1></td></tr>
+        <!--<tr><td class="ta_r">Поправка для датчика давления: </td><td class="ta_l"><input id="p_MPX5010" type="text" size="4" maxlength="4"></td></tr>-->
+        
+        <tr><td colspan="2" class="ta_subtitle">Опции безопасности</td></tr>
+        <!--<tr><td class="ta_r">Давление срабатывания тревоги: </td><td class="ta_l"><input id="alarmMPX5010" type="text" size="8" maxlength="8"></td></tr>-->
+        <tr><td class="ta_r">Выключать дифф-автомат по тревоге Т: </td>
+            <td class="ta_l"><input id="alarmDIFFoffT" type="checkbox" value=0></td></tr>
+        <tr><td class="ta_r">Выключать дифф-автомат по превышению мощности: </td>
+            <td class="ta_l"><input id="alarmDIFFoffP" type="checkbox" value=0></td></tr>
+        <tr><td class="ta_r">Задержка выключения дифф-автомата, сек: </td>
+            <td class="ta_l"><input id="DIFFoffDelay" type="text" size="4" maxlength="4"></td></tr>
+        <tr><td class="ta_r">Выключать дифф-автомат при старте: </td>
+            <td class="ta_l"><input id="DIFFoffOnStart" type="checkbox" value=0></td></tr>
+        <tr><td class="ta_r">Выключать дифф-автомат при завершении: </td>
+            <td class="ta_l"><input id="DIFFoffOnStop" type="checkbox" value=0></td></tr>
 
-<tr><td class="ta_r" colspan="2">&nbsp;</td></tr>
+        <tr><td colspan="2" class="ta_l" style="background-color: var(--frame-brd-color);"><h3>Ректификация</h3></td></tr>
+        <tr><td class="ta_r">Мощность ректификации: </td>
+            <td class="ta_l"><input id="powerRect" type="text" size="5" maxlength="8"> Вт.</td></tr>
 
-<tr><td class="ta_r">Мощность в режиме дистилляции: </td>
-<td class="ta_l"><input id="powerDistil" type="text" size="5" maxlength="8"> Вт.</td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Разгон</td></tr>
+        <!--<tr><td class="ta_r">Мощность разгона: </td><td class="ta_l"><input id="powerRazgon" type="text" size="5" maxlength="8"> Вт.</td></tr>-->
+        <tr><td class="ta_r">Разгон до Т куба: </td>
+            <td class="ta_l"><input id="tempEndRectRazgon" type="text" size="4" maxlength="4"> C</td></tr>
 
-<tr><td class="ta_r">Температура куба окончания дистилляции: </td>
-<td class="ta_l"><input id="tempEndDistil" type="text" size="4" maxlength="4" /> C</td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Головы</td></tr>
+        <tr><td class="ta_r">Период для шим'a отбора голов: </td>
+            <td class="ta_l"><input id="timeChimRectOtbGlv" type="text" size="4" maxlength="4"> Сек</td></tr>
+        <tr><td class="ta_r">Процент ШИМ отбора голов: </td>
+            <td class="ta_l"><input id="procChimOtbGlv" type="text" size="3" maxlength="3"> %</td></tr>
+        <tr><td class="ta_r">Отбор голов до (+Т куба,- Время в минутах): </td>
+            <td class="ta_l"><input id="tEndRectOtbGlv" type="text" size="6" maxlength="6"> C</td></tr>
+        <!--<tr><td class="ta_r">Уровень проводимости, меньше которого переходим к СР: </td>
+            <td class="ta_l"><input id="urovenProvodimostSR" type="text" size="6" maxlength="6" /></td></tr>-->
 
-<tr><td class="ta_r" colspan="2">&nbsp;</td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Тело</td></tr>
+        <tr><td class="ta_r">Время стабилизации колонны(+отн.,-абс.): </td>
+            <td class="ta_l"><input id="timeStabKolonna" type="text" size="6" maxlength="6" /> Сек.</td></tr>
+        <tr><td class="ta_r">Период ШИМ отбора СР: </td>
+            <td class="ta_l"><input id="timeChimRectOtbSR" type="text" size="4" maxlength="4"> Сек.</td></tr>
+        <tr><td class="ta_r">Начальный % ШИМ отбора СР: </td>
+            <td class="ta_l"><input id="beginProcChimOtbSR" type="text" size="3" maxlength="3"> %</td></tr>
+        <tr><td class="ta_r">Минимальный процент ШИМ'а отбора СР: </td>
+            <td class="ta_l"><input id="minProcChimOtbSR" type="text" size="3" maxlength="3"> %</td></tr>
+        <tr><td class="ta_r">Количество значений в таблице обучения ШИМ: </td>
+            <td class="ta_l"><input id="cntCHIM" type="text" size="8" maxlength="8" /></td></tr>
+        <tr><td class="ta_r">Допуск температуры до стопа/рестабилизации: </td>
+            <td class="ta_l"><input id="tempDeltaRect" type="text" size="4" maxlength="4"> C</td></tr>
+        <tr><td class="ta_r">Уменьшение % ШИМ отбора при 'стоп'(+абс,-относ.): </td>
+            <td class="ta_l"><input id="decrementCHIM" type="text" size="3" maxlength="3" /> %</td></tr>
+        <tr><td class="ta_r">Таймаут рестабилизации(переход к отбору): </td>
+            <td class="ta_l"><input id="timeRestabKolonna" type="text" size="8" maxlength="8"> Сек.</td></tr>
+        <tr><td class="ta_r">Время без 'стоп' до увеличения ШИМ: </td>
+            <td class="ta_l"><input id="timeAutoIncCHIM" type="text" size="5" maxlength="5"> Сек</td></tr>
+        <tr><td class="ta_r">Шаг увеличения % ШИМ (+абс.,-относит.): </td>
+            <td class="ta_l"><input id="incrementCHIM" type="text" size="3" maxlength="3" /> %</td></tr>
+        <tr><td class="ta_r">Температура(+куб,-низ колонны) завершения тела: </td>
+            <td class="ta_l"><input id="tempEndRectOtbSR" type="text" size="5" maxlength="5"/> C</td></tr>
 
-<tr><td class="ta_r">Тихий режим работы клапанов: </td>
-<td class="ta_l"><input id="klpSilentNode" type="checkbox" value=1></td></tr>
+        <tr><td colspan="2" class="ta_subtitle">Хвост</td></tr>
+        <tr><td class="ta_r">Температура [куба] завершения ректификации: </td>
+            <td class="ta_l"><input id="tempEndRect" type="text" size="4" maxlength="4" /> C</td></tr>
+            
+        <tr><td colspan="2" class="ta_l" style="background-color: var(--frame-brd-color);"><h3>Дистилляция</h3></td></tr>
+        <tr><td class="ta_r">Мощность в режиме дистилляции: </td>
+            <td class="ta_l"><input id="powerDistil" type="text" size="5" maxlength="8"> Вт.</td></tr>
+        <tr><td class="ta_r">Температура [куба] окончания дистилляции: </td>
+            <td class="ta_l"><input id="tempEndDistil" type="text" size="4" maxlength="4" /> C</td></tr>
 
-<tr><td class="ta_r">Давление при котором надо выдавать сингал тревоги: </td>
-<td class="ta_l"><input id="alarmMPX5010" type="text" size="8" maxlength="8"></td></tr>
-<tr><td class="ta_r">Звук при переключении режимов: </td>
-<td class="ta_l"><input id="beepChangeState" type="checkbox" value=1></td></tr>
+        <tr><td colspan="2" class="ta_l" style="background-color: var(--frame-brd-color);"><h3>Регулятор мощности</h3></td></tr>
+        <tr><td class="ta_r">Мощность в режиме регулятора мощности: </td>
+            <td class="ta_l"><input id="ustPowerReg" type="text" size="5" maxlength="8"> Вт.</td></tr>
+        <tr><td class="ta_r" colspan="2">&nbsp;</td></tr>
 
-<tr><td class="ta_r">Gpio включенный во время процесса (0 - нет): </td>
-<td class="ta_l"><input id="processGpio" type="text" size="8" maxlength="8" value="0"></td></tr>
-<tr><td colspan="2" class="ta_c">
-<tr><td class="ta_r">Вместа клапана воды используется регулятор: </td>
-<td class="ta_l"><input id="klp1_isPWM" type="checkbox" value=1></td></tr>
-
-<tr><td class="ta_r">PZEM протокол v.30 (modbus RTU) <span class="red">*</span>: </td>
-<td class="ta_l"><input id="pzemVersion" type="checkbox" value=1>Да</td></tr>
-
-<tr><td class="ta_r">Выключать дифф-автомат по тревоге Т: </td>
-  <td class="ta_l"><input id="alarmDIFFoffT" type="checkbox" value=0></td></tr>
-<tr><td class="ta_r">Выключать дифф-автомат по превышению мощности: </td>
-  <td class="ta_l"><input id="alarmDIFFoffP" type="checkbox" value=0></td></tr>
-<tr><td class="ta_r">Задержка выключения дифф-автомата, сек: </td>
-  <td class="ta_l"><input id="DIFFoffDelay" type="text" size="4" maxlength="4"></td></tr>
-<tr><td class="ta_r">Выключать дифф-автомат при старте: </td>
-  <td class="ta_l"><input id="DIFFoffOnStart" type="checkbox" value=0></td></tr>
-<tr><td class="ta_r">Выключать дифф-автомат при завершении: </td>
-  <td class="ta_l"><input id="DIFFoffOnStop" type="checkbox" value=0></td></tr>
-
-<tr><td colspan="2" class="ta_c">
-<input type="button" value="Восстановить по умолчанию" onclick="default_parameters();"/>
-<input type="button" value="Сохранить изменения" onclick="set_parameters();"/>
+        <tr><td colspan="2" class="ta_c">
+        <input type="button" value="Восстановить по умолчанию" onclick="default_parameters();"/>
+        <input type="button" value="Сохранить изменения" onclick="set_parameters();"/>
 </td></tr>
 
 </tbody></table>
 </div>
 
 <div class="pages" id="sens_setup" style="display: none;">
-<h2>Температурные датчики</h2>
-<div class="ta_c"><a href="#" onclick="rescan_sens(); return false;">[Просканировать шину заного]</a></div>
+<div style="display:flex; align-items: center;">
+    <h2>Температурные датчики</h2>
+    <input type="checkbox" id="emuswitch" onclick="emu();" value="Эмуляция"> 
+    <a>Эмуляция</a>
+</div>    
+<div>
+    <a href="#" onclick="rescan_sens(); return false;">[Сканировать шину]</a>
+    <a class="emuframe" style="display:none;">
+        Эмулировать:
+        <select id="emuType">
+            <option value="0">Температура в кубе</option>
+            <option value="1">Температура нижней части колонны</option>
+            <option value="2">Температура верней части колонны</option>
+            <option value="3">Температура в дефлегматоре</option>
+            <option value="4">Температура воды охлаждения, вход</option>
+            <option value="5">Температура воды охлаждения, выход</option>
+            <option value="6">Аварийный датчик температуры</option>
+            <option value="7">Не назначено</option>
+        </select>
+        Т,C:
+        <input type="text" id="emuTinp" maxlength="5"/>
+        <input type="button" value=" SET " onclick="emuT();"/>
+    </a>
+</div>
 <table class="param" id="sens_table" style="width: 80%;">
 <thead>
 <tr><th>ID</th>
@@ -698,7 +858,7 @@ showStick = function(level,text) {
 <input type="button" value="Добавить" onclick="add_wifi_ap();"/>
 <input type="button" value="Отмена" onclick="cancel_wifi();"/>
 </td></tr>
-<tr><td colspan="2" id="wifi_saveok" class="ta_c" style="font-weidth: bold; color:green; display: none;">Добавлено.</td></tr>
+<tr><td colspan="2" id="wifi_saveok" class="ta_c bold" style="color:green; display: none;">Добавлено.</td></tr>
 <tr><td class="ta_c" colspan="2" class="ta_c" style="color: red; display: none;" id="add_wifi_fail">Ошибка добавления!!</td></tr>
 </tbody></table>
 
@@ -718,8 +878,13 @@ showStick = function(level,text) {
 </div>
 
 
-</div></div>
+</div><!--left panel-->
 
+<div class="fpanel" style = "width:300px;">
+<span class="log"></span>
+</div> <!--left panel-->
+
+</div> <!--multiwin-->
 <div class="footer">
 <span class="ta_l" style="padding-left: 15px;">hd_esp32 Copyright &copy; 2020,
 </span>
@@ -785,44 +950,60 @@ EndProcess = function() {
   }, 'json');
 }
 
-setPower = function(delta) {
-<<<<<<< HEAD
- var newPower = eval($('#new_power').val());
-
- if (isNaN(newPower)) newPower=0;
- newPower = newPower + delta;
- 
-=======
- var newPower = eval($('#new_power').val()) + delta;
->>>>>>> refs/heads/master
- if ((newPower<0)||(delta<0)) newPower=0;
+sendPower = function(newPower) {
  $.post('/setpower', {
         'power': newPower,
  }, function(d) {
-	$('#new_power').val(newPower);
 	showStick(d.err, d.msg);
 	disp_main();
-  }, 'json');
+ }, 'json');
+}
+
+setPower = function(delta) {
+ let newPower = $(".SetPower").data("power");
+ if (delta==0) 
+    newPower = eval($('#new_power').val());
+ else
+    newPower += delta;
+ if (newPower<0) newPower=0;
+ sendPower(newPower);
 }
 
 klp_disp = function(id) {
   $.get('/klp_status', {
         'id': id
-  }, function(k) {
-	var html;
-	if (eval(k.is_pwm)) {
-		if (eval(k.is_open)) html = "Открыт. ";
-		else html = "Закрыт. ";
-		html += "Шим режим "+k.pwm_time+"сек "+k.pwm_percent+" %";
-	} else {
-		if (eval(k.is_open)) html = "Открыт";
-		else html = "Закрыт";
-	}
-	$(".klp_status_"+k.id).html(html);
-	$(".klp_shim_"+k.id).val(k.pwm_time);
-	$(".klp_on_"+k.id).val(k.pwm_percent);
-        showStick(k.err, k.msg);
-  }, 'json');
+  }, function (d){ display_one_valve(d);}
+  , 'json');
+}
+
+display_one_valve = function(k) {
+        var open_html;
+        var pwm_html;
+        if (eval(k.is_open)) open_html = "Открыт";
+        else open_html = "Закрыт";
+        
+        if (eval(k.is_pwm)){
+          pwm_html = "ШИМ "+k.pwm_time+"сек "+k.pwm_percent+" %";
+          
+        } else {
+          pwm_html = "";
+        }
+        
+        $(".klp_status_"+k.id).html(open_html);
+        $(".klp_pwm_"+k.id).html(pwm_html);
+        
+        if (($(".klp_shim_"+k.id).data("focused")==0)&& ($(".klp_on_"+k.id).data("focused")==0)) {
+          $(".klp_on_"+k.id).val(k.pwm_percent);
+          $(".klp_shim_"+k.id).val(k.pwm_time);
+        }
+}
+
+display_valves = function(valves_array) {
+    if (typeof(valves_array)=="undefined") return;
+    
+	for (var i in valves_array) {
+        display_one_valve(valves_array[i]);
+    }
 }
 
 klp_on = function(id) {
@@ -832,6 +1013,7 @@ klp_on = function(id) {
 	klp_disp(id);
  }, 'json');
 }
+
 klp_off = function(id) {
  $.post('/klp_off', {
         'id': id
@@ -839,6 +1021,7 @@ klp_off = function(id) {
 	klp_disp(id);
  }, 'json');
 }
+
 klp_shim_on = function(id, n1, n2) {
  $.post('/klp_shim_on', {
         'id': id,
@@ -847,6 +1030,22 @@ klp_shim_on = function(id, n1, n2) {
  }, function(d) {
 	klp_disp(id);
  }, 'json');
+}
+
+setTstab = function() {
+ $.post('/tstab', {'t': $('#tstab').val()},
+  function(d) {
+	showStick(d.err, d.msg);
+    if (eval(d.err)==0) $(".rect_t_stab").html($('#tstab').val()+" C");
+  }, 'json');
+}
+
+setPWMsr = function() {
+ $.post('/pwmsr', {'p': $('#pwmSr').val()},
+  function(d) {
+	showStick(d.err, d.msg);
+    if (eval(d.err)==0) $(".rect_p_shim").html($('#pwmSr').val()+"%");
+  }, 'json');
 }
 
 prev_mode  = -1;
@@ -858,6 +1057,8 @@ putModeStat = function(d){
     let main_status = eval(d.MainStatus);
     
     if ((prev_mode==main_mode)&&(prev_state==main_status)) return;
+    prev_mode = main_mode;
+    prev_state= main_status
     
     let disable_mode_change = (((main_mode == 2)||(main_mode == 3)) && ((main_status>0)&&(main_status<100)));
     
@@ -884,6 +1085,7 @@ putModeStat = function(d){
 		$('#next_status').hide();
 		$('.i_start').hide();
 		$('.i_end').hide();
+        disable_mode_change = false;
     }
     
     $(".MainMode").prop("disabled", disable_mode_change);
@@ -895,6 +1097,7 @@ disp_main = function() {
   $(".modes").hide();
 
   $.get('/maininfo', {}, function(d) {
+    create_sensor_table(d);
     infoUpdate(d);
 	//$("#sw_mode").show();
 	//$("#prev_status").show();
@@ -973,13 +1176,14 @@ default_parameters = function() {
 }
 
 set_parameters = function() {
-  var beepChangeState=0, klpSilentNode=0, klp1_isPWM=0, pzemVersion=0;
+  var beepChangeState=0, klpSilentNode=0, klp1_isPWM=0, pzemVersion=0, no_power=0;
   var alarmDIFFoffT=0,alarmDIFFoffP=0,DIFFoffOnStart=0,DIFFoffOnStop=0;
 
   if($('#beepChangeState').is(':checked')) beepChangeState=1;
   if($('#klpSilentNode').is(':checked')) klpSilentNode=1;
   if($('#klp1_isPWM').is(':checked')) klp1_isPWM=1;
   if($('#pzemVersion').is(':checked')) pzemVersion=1;
+  if($('#no_power').is(':checked')) no_power=1;
 
   if($('#alarmDIFFoffT').is(':checked')) alarmDIFFoffT=1;
   if($('#alarmDIFFoffP').is(':checked')) alarmDIFFoffP=1;
@@ -1016,6 +1220,7 @@ set_parameters = function() {
 	'beepChangeState': beepChangeState,
 	'klp1_isPWM': klp1_isPWM,
 	'pzemVersion': pzemVersion,
+    'no_power':no_power,
 	'processGpio': $("#processGpio").val(),
     'alarmDIFFoffT': alarmDIFFoffT,
     'alarmDIFFoffP': alarmDIFFoffP,
@@ -1065,6 +1270,10 @@ disp_setting = function() {
     
 	if (eval(d.pzemVersion)) $('#pzemVersion').prop('checked', 1);
 	else $('#pzemVersion').removeAttr('checked');
+
+	if (eval(d.no_power)) $('#no_power').prop('checked', 1);
+	else $('#no_power').removeAttr('checked');
+
 	$("#processGpio").val(d.processGpio);
 
 	if (eval(d.alarmDIFFoffT)) $('#alarmDIFFoffT').prop('checked', 1);
@@ -1114,6 +1323,7 @@ update_sens = function() {
 	disp_sensor();
   }, 'json');
 }
+
 edit_sens = function(sens_id) {
   $.get('/senslist', {}, function(d) {
 	for (var i in d) {
@@ -1144,7 +1354,7 @@ disp_sensor = function() {
   var t = $('#sens_list');
   t.empty();
   $.get('/senslist', {}, function(d) {
-	var html;
+    var html;
 	for (var i in d) {
 		var s = d[i];
 		html = '<tr><td class="ta_c">'+s.id+
@@ -1156,11 +1366,29 @@ disp_sensor = function() {
 		s.talert+' C</td></tr>';
 		t.append(html);
 	}
-	$("#sens_setup").show();
-	$("#sens_table").show();
   }, 'json');
+  $("#sens_setup").show();
+  $("#sens_table").show();
   window.location.hash = '#sens_setup';
-  
+}
+
+emuT =  function(){
+ $.post('/emulate', {
+        'type': $('#emuType').val(),
+        't': $('#emuTinp').val()
+   }, function(d) {
+	showStick(d.err, d.msg);
+	disp_sensor();
+  }, 'json');
+}
+
+emu = function(){
+    if ($("#emuswitch").prop("checked")) {
+        $(".emuframe").show();
+    }
+    else {
+        $(".emuframe").hide();
+    }
 }
 
 wifi_select_ap = function(ssid) {
@@ -1251,7 +1479,6 @@ delete_file = function(file) {
 }
 
 
-
 disp_fs = function() {
   $(".pages").hide();
   var t = $('#dir_file_list');
@@ -1278,6 +1505,14 @@ _sysinfo = function() {
 	$(".totalBytes").html('Всего: '+d.totalBytes);
 	$(".heap").html('heap: '+d.heap);
 	$(".rReason").html(d.rReason);
+    $('#alarmsound').prop("checked",false);
+    if (eval(d.asoundOff)) $('#alarmsound').prop("checked",true);
+    
+    if (eval(d.no_power)) 
+        $('.power').hide();
+    else
+        $('.power').show();
+    
     set_bmd_data(d);
   }, 'json');
 }
@@ -1302,6 +1537,19 @@ do_reset = function() {
   }, 'html');
 
 }
+
+let alarm_sound_off = 0;
+
+
+$('#alarmsound').click(function(){
+    if ($(this).is(':checked')) alarm_sound_off=1;
+    else alarm_sound_off=0;
+    $.post('/asound', {
+            'off': alarm_sound_off
+       }, function(d) {
+        showStick(d.err, d.msg);
+      }, 'json');
+});
 
 $(document).ready(function() {
   var h = window.location.hash;
@@ -1329,8 +1577,12 @@ $(document).ready(function() {
 	disp_main();
 	break;
   }
+  $("#emuswitch").prop("checked",0);
+  if ($('#alarmsound').prop('checked')) alarm_sound_off=1;
+  else alarm_sound_off=0;
   websock_init(u[4], 'web');
 });
+
 $(window).unload( function () {
   if ('undefined' != typeof WS_SOCK) {
 	WS_SOCK.close();
@@ -1351,7 +1603,68 @@ function timerWSupdate() {
   }
 }
 
+const getFrequency = (note = 1) => {
+    switch (note) {
+        case 4:
+            return 440;
+        case 6:
+            return 392;
+        case 8:
+            return 349;
+        case 9:
+            return 330;
+        case 11:
+            return 294;
+        case 13:
+            return 262;
+        case 14:
+            return 247;
+        case 15:
+            return 233;
+        case 16:
+            return 220;
+        case 18:
+            return 196;
+        case 21:
+            return 165;
+        default:
+            return 0;
+    }
+}
+
+const sleep = (duration = 250) => new Promise((resolve) => {
+    setTimeout(resolve, duration);
+});
+
+const beep = (freq = 520, duration = 200, vol = 100) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.connect(gain);
+    oscillator.frequency.value = freq;
+    oscillator.type = "square";
+    gain.connect(context.destination);
+    gain.gain.value = vol * 0.01;
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + duration * 0.001);
+}
+
+let context = null;
+
+beep_notes = function(Notes){
+        Array.prototype.forEachAsync = async function (fn) {
+            for (let t of this) { await fn(t) }
+        }
+        context = new AudioContext();
+        Notes.forEachAsync(async (note) => {
+            await sleep();
+            beep(getFrequency(note));
+        });
+}
+
+alarm_beep = function(){
+    const alarmNotes = [4,9];
+    beep_notes(alarmNotes);
+}
 </script>
 
 </body></html>
-

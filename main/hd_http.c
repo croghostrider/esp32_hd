@@ -51,6 +51,7 @@ License (MIT license):
 #include "hd_wifi.h"
 #include "hd_main.h"
 #include "ds.h"
+#include "debug.h"
 
 #define HTTP_SEND(A,B,C)  do { if (!httpdSend(A,B,C)) ESP_LOGE(__func__,"out of memory in httpdSend()");} while(0)
 
@@ -131,18 +132,8 @@ wwwPage WIFI_PAGE[] = {
 	{NULL}
 };
 
-static void json_ok(HttpdConnData *c)
-{
-	httpdSend(c, "{\"err\":\"0\",\"msg\":\"OK\"}", 22);
-}
-
-
-static void json_err(HttpdConnData *c)
-{
-	httpdSend(c, "{\"err\":\"1\",\"msg\":\"Error\"}", 24);
-}
-
-
+#define json_ok(C) 	httpdSend(C, "{\"err\":\"0\",\"msg\":\"OK\"}", 22)
+#define json_err(C)  httpdSend(C, "{\"err\":\"1\",\"msg\":\"Error\"}", 24)
 
 static const char *get_http_method(char method)
 {
@@ -534,12 +525,35 @@ int httpSetPower(HttpdConnData *connData)
 		char ps[10];
 
 		httpdFindArg(connData->post->buff, "power", ps, sizeof(ps));
-		setPower(atoi(ps));
-		json_ok(connData);
-	} else {
-		json_err(connData);
+		int tmp = atoi(ps);
+		if (tmp>=0) {
+			setPower(tmp);
+			json_ok(connData);
+			return HTTPD_CGI_DONE;
+		}
 	}
+	json_err(connData);
+	return HTTPD_CGI_DONE;
+}
 
+int httpSetTstab(HttpdConnData *connData)
+{
+	if (connData->conn==NULL) return HTTPD_CGI_DONE;
+	if (checkAuth(connData)) return HTTPD_CGI_DONE;
+
+	send_json_headers(connData);
+
+	if (connData->requestType == HTTPD_METHOD_POST) {
+		char buf[10];
+		httpdFindArg(connData->post->buff, "t", buf, sizeof(buf));
+		double tmp = atof(buf);
+		if ((tmp>20.0)&&(tmp<120.0)) {
+			setTempStabSR(tmp);
+			json_ok(connData);
+			return HTTPD_CGI_DONE;
+		}
+	}
+	json_err(connData);
 	return HTTPD_CGI_DONE;
 }
 
@@ -569,7 +583,7 @@ int httpSetStatus(HttpdConnData *connData)
 	if (connData->requestType == HTTPD_METHOD_POST) {
 		char nm[10]="0";
 		httpdFindArg(connData->post->buff, "new", nm, sizeof(nm));
-		setStatus(atoi(nm));
+		moveStatus(atoi(nm));
 		json_ok(connData);
 	} else {
 		json_err(connData);
@@ -577,13 +591,29 @@ int httpSetStatus(HttpdConnData *connData)
 	return HTTPD_CGI_DONE;
 }
 
+int httpAlarmSound(HttpdConnData *connData)
+{
+	if (connData->conn==NULL) return HTTPD_CGI_DONE;
+	if (checkAuth(connData)) return HTTPD_CGI_DONE;
+
+	send_json_headers(connData);
+	if (connData->requestType == HTTPD_METHOD_POST) {
+		char s[2]="0";
+		httpdFindArg(connData->post->buff, "off", s, sizeof(s));
+		fAlarmSoundOff = atoi(s);
+		json_ok(connData);
+	} else {
+		json_err(connData);
+	}
+	return HTTPD_CGI_DONE;
+}
 
 int httpStartProcess(HttpdConnData *connData)
 {
 	if (connData->conn==NULL) return HTTPD_CGI_DONE;
 	if (checkAuth(connData)) return HTTPD_CGI_DONE;
 	send_json_headers(connData);
-	setNewMainStatus(PROC_START);
+	set_status(PROC_START);
 	json_ok(connData);
 	return HTTPD_CGI_DONE;
 
@@ -594,7 +624,7 @@ int httpEndProcess(HttpdConnData *connData)
 	if (connData->conn==NULL) return HTTPD_CGI_DONE;
 	if (checkAuth(connData)) return HTTPD_CGI_DONE;
 	send_json_headers(connData);
-	setNewMainStatus(PROC_END);
+	set_status(PROC_END);
 	json_ok(connData);
 	return HTTPD_CGI_DONE;
 }
@@ -680,6 +710,7 @@ int httpKlpShimOn(HttpdConnData *connData)
 	if (checkAuth(connData)) return HTTPD_CGI_DONE;
 	send_json_headers(connData);
 	if (connData->requestType == HTTPD_METHOD_POST) {
+		int klp_id;
 		float topen = 0, period, percent;
 		char id[10], p[10]="0", k[10]="0";
 		httpdFindArg(connData->post->buff, "id", id, sizeof(id));
@@ -687,10 +718,17 @@ int httpKlpShimOn(HttpdConnData *connData)
 		httpdFindArg(connData->post->buff, "klp_on", k, sizeof(k));
 		period = atoi(p);
 		percent = atoi(k);
+		klp_id=atoi(id);
+
 		if (percent>100) percent = 100;
 		if(period && percent) {
 			topen = period/100*percent;
-			if (topen > 0) startKlpPwm(atoi(id), topen, period-topen);
+			if (topen > 0) startKlpPwm(klp_id, topen, period-topen);
+			if (	(klp_id==klp_sr) &&
+					(MainMode==MODE_RECTIFICATION) &&
+					(MainStatus>=PROC_RAZGON)	&&
+					(MainStatus<PROC_HV)
+				)	setNewProcChimSR((int)percent);
 		}
 		json_ok(connData);
 	} else {
@@ -701,31 +739,12 @@ int httpKlpShimOn(HttpdConnData *connData)
 
 int httpListSensor(HttpdConnData *connData)
 {
-	cJSON *ja, *j;
-	DS18 *d;
-
 	if (connData->conn==NULL) return HTTPD_CGI_DONE;
 	if (checkAuth(connData)) return HTTPD_CGI_DONE;
 
 	send_json_headers(connData);
 
-	ja = cJSON_CreateArray();
-	for (int i=0; i<MAX_DS; i++) {
-		d = &ds[i];
-		if (!d->is_connected) continue;
-		j = cJSON_CreateObject();
-		cJSON_AddItemToArray(ja, j);
-		cJSON_AddItemToObject(j, "id", cJSON_CreateNumber(i));
-		cJSON_AddItemToObject(j, "rom", cJSON_CreateString(d->adressStr));
-		cJSON_AddItemToObject(j, "descr", cJSON_CreateString(d->description?d->description:""));
-		cJSON_AddItemToObject(j, "type_str", cJSON_CreateString(getDsTypeStr(d->type)));
-		cJSON_AddItemToObject(j, "type", cJSON_CreateNumber(d->type));
-		cJSON_AddItemToObject(j, "corr", cJSON_CreateNumber(d->corr));
-		cJSON_AddItemToObject(j, "talert", cJSON_CreateNumber(d->talert));
-		cJSON_AddItemToObject(j, "temp", cJSON_CreateNumber(d->Ce));
-
-	}
-
+	cJSON* ja = getDSjson();
 	char *r=cJSON_Print(ja);
 	if (r) {
 		httpdSend(connData, r, strlen(r));
@@ -836,6 +855,32 @@ int httpUpdateSensor(HttpdConnData *connData)
 	return HTTPD_CGI_DONE;
 }
 
+//{"/emulate", httpEmulateSensor, NULL},
+int httpEmulateSensor(HttpdConnData *connData)
+{
+	if (connData->conn==NULL) return HTTPD_CGI_DONE;
+	if (checkAuth(connData)) return HTTPD_CGI_DONE;
+
+	send_json_headers(connData);
+
+	if (connData->requestType == HTTPD_METHOD_POST) {
+		DsType dtype;
+		float t;
+		char buf[10];
+		httpdFindArg(connData->post->buff, "type", buf, sizeof(buf));
+		dtype = atoi(buf);
+		httpdFindArg(connData->post->buff, "t", buf, sizeof(buf));
+		t = atof(buf);
+		if (emulateT(dtype, t)==ESP_OK) {
+			json_ok(connData);
+			return HTTPD_CGI_DONE;
+		}
+	}
+	json_err(connData);
+	return HTTPD_CGI_DONE;
+}
+
+
 int httpRescanSensor(HttpdConnData *connData)
 {
 	if (connData->conn==NULL) return HTTPD_CGI_DONE;
@@ -883,6 +928,9 @@ int httpSysinfo(HttpdConnData *connData)
 	cJSON_AddItemToObject(ja, "usedBytes", cJSON_CreateNumber(SPIFFS_used));
 	cJSON_AddItemToObject(ja, "heap", cJSON_CreateNumber(esp_get_free_heap_size()));
 	cJSON_AddItemToObject(ja, "rReason", cJSON_CreateString(getResetReasonStr()));
+	cJSON_AddItemToObject(ja, "asoundOff", cJSON_CreateNumber(fAlarmSoundOff));
+	cJSON_AddItemToObject(ja, "no_power", cJSON_CreateNumber(getIntParam(DEFL_PARAMS, "no_power")));
+
 	char *r=cJSON_Print(ja);
 	if (r) {
 		httpdSend(connData, r, strlen(r));
@@ -1735,10 +1783,14 @@ HttpdBuiltInUrl builtInUrls[]={
 	{"/klp_on", httpKlpOn, NULL},
 	{"/klp_off", httpKlpOff, NULL},
 	{"/klp_shim_on", httpKlpShimOn, NULL},
+	{"/tstab", httpSetTstab, NULL},
 
 	{"/senslist", httpListSensor, NULL},
 	{"/updatesens", httpUpdateSensor, NULL},
 	{"/rescansens", httpRescanSensor, NULL},
+	{"/emulate", httpEmulateSensor, NULL},
+	{"/asound", httpAlarmSound, NULL},
+
 
 	{"/maininfo", httpMainInfo, NULL},
 	{"/sysinfo", httpSysinfo, NULL},

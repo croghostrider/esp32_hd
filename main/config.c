@@ -87,6 +87,7 @@ vaiable_list DEFL_PARAMS[] =
 	{"klp1_isPWM", 		VARIABLE_CHECKBOX, 0,	1,	"0",	NULL},
 	{"pzemVersion", 	VARIABLE_INT,	0,	2,	"0",	NULL},
 	{"useExernalAlarm", 	VARIABLE_CHECKBOX, 0,	1,	"0",	NULL},
+	{"no_power", 			VARIABLE_CHECKBOX, 0,	1,	"0",	NULL},
 	//------настройки группы безопасности
 	{"alarmDIFFoffT", 	VARIABLE_CHECKBOX, 0,	1,	"0",	NULL}, //Выключать дифф-автомат по тревоге Т
 	{"alarmDIFFoffP", 	VARIABLE_CHECKBOX, 0,	1,	"0",	NULL}, //Выключать дифф-автомат по превышению мощности

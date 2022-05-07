@@ -89,12 +89,18 @@ typedef enum DsType {
 
 typedef struct {
 	uint8_t	id;
-	bool is_connected;	// Флаг наличия датчика
-	bool parasite;
+	union {
+		uint16_t flags;
+		struct {
+			uint16_t is_connected:1;			// датчик обнаружен при опросе шины
+			uint16_t parasite:1;				// питание датчика - паразитное
+			uint16_t waitForConversion:1;	// датчик в процессе преобразования
+			uint16_t emulated:1;				// датчик эмулируется
+		};
+	};
 	DeviceAddress deviceAddress;	// ROM адрес датчика
 	char	adressStr[20];	// Строка для ROM адреса датчика в читабельном виде
 	uint8_t bitResolution;	// Разрешение датчика, используется для вычисления задержки
-	bool waitForConversion;	// Флаг ожидания окончания преобразования температуры
 	DsType	type;		// Назначение датчика
 	double corr;		// Поправка к темперетуре	
 	double Ce;		// Последнее считанное значение температуры
@@ -172,6 +178,9 @@ const char *getDsTypeStr(DsType t);
 void ds_task(void *arg);
 double getCubeTemp(void);	// Получить температуру в кубе
 double getTube20Temp(void);	// Получить температуру в нижней части колонны
+
+esp_err_t emulateT(DsType dtype, float t);
+cJSON*  getDSjson(void);
 
 #ifdef __cplusplus
 }

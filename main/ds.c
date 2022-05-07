@@ -838,6 +838,7 @@ int ds_init(int argc, char** argv)
 		d->id = i;
 		d->deviceAddress[0] = 0;
 		d->is_connected = false;
+		d->emulated=false;
 		d->parasite = false;
 		d->bitResolution = 9;
 		d->waitForConversion = true;
@@ -845,7 +846,7 @@ int ds_init(int argc, char** argv)
 		d->talert = 0;
 		d->corr = 0;
 		d->Ce = 0;
-			d->errcount=0;
+		d->errcount=0;
 		if(d->description) { free(d->description); d->description = NULL; }
 	}
 	maxBitResolution =9;
@@ -1196,9 +1197,12 @@ const char *getDsTypeStr(DsType t)
 	}
 }
 
-alarm_mode SavedAlarmMode;
+
 void ds_task(void *arg)
 {
+	bool alarmT;
+	static alarm_mode SavedAlarmMode;
+
 	ds2482_init();	// Detect and init DS2482 chip
 	if (!ow_mux) ow_mux = xSemaphoreCreateMutex();
 	ds_init(0, NULL); // Detect any DS18B20 connected to Ds2482
@@ -1212,7 +1216,7 @@ void ds_task(void *arg)
 	};
 	ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 
-
+	SavedAlarmMode = AlarmMode;
 	while(1) {
 		if (!ds18_devices){
 			vTaskDelay(1000/portTICK_PERIOD_MS);
@@ -1221,22 +1225,23 @@ void ds_task(void *arg)
 
 		xSemaphoreTake(ow_mux, portMAX_DELAY);
 		ds_requestTemperatures();
+		alarmT = false;
 		for (int i=0; i<MAX_DS; i++) {
 			DS18 *d = &ds[i];
 			if (!d->is_connected) continue;
-			ds_getTempC(d);
-			//if (DS_ALARM == d->type && d->Ce > d->talert) {
-			if (d->Ce > d->talert) { // check
-				// Alarm mode
-				AlarmMode |= ALARM_TEMP;
-				if (!(SavedAlarmMode|ALARM_TEMP)) {
-					sendSMS("Temperature alarm! power switched off!");
-				}
-			} else {
-				AlarmMode &= ~(ALARM_TEMP);
-			}
-			SavedAlarmMode = AlarmMode;
+			if (!d->emulated) ds_getTempC(d);
+			alarmT |= (d->Ce >= d->talert);
 		}
+
+		if (alarmT) {
+			AlarmMode |= ALARM_TEMP;
+			if (! (SavedAlarmMode&ALARM_TEMP)) {
+				sendSMS("Temperature alarm! power switched off!");
+			}
+		} else {
+			AlarmMode &= ~(ALARM_TEMP);
+		}
+		SavedAlarmMode = AlarmMode;
 		xSemaphoreGive(ow_mux);
 		vTaskDelay(500/portTICK_PERIOD_MS);
 	}
@@ -1245,12 +1250,11 @@ void ds_task(void *arg)
 // Получить температуру в кубе
 
 double getCubeTemp(void) {
-	if (emulate_devices) return testCubeTemp; // Эмуляция
-
 	for (int i=0; i<MAX_DS; i++) {
 		DS18 *d = &ds[i];
-		if (!d->is_connected) continue;
-		if (DS_CUB == d->type) return d->Ce;
+		if ((d->is_connected)||(d->emulated)) {
+			if (DS_CUB == d->type) return d->Ce;
+		}
 	}
 	return -1;
 }
@@ -1260,9 +1264,69 @@ double getTube20Temp(void)
 {
 	for (int i=0; i<MAX_DS; i++) {
 		DS18 *d = &ds[i];
-		if (!d->is_connected) continue;
-		if (DS_TUBE20 == d->type) return d->Ce;
+		if ((d->is_connected)||(d->emulated)) {
+			if (DS_TUBE20 == d->type) return d->Ce;
+		}
 	}
 	// Если датчик не найден - возвращаем кубовую температуру
 	return getCubeTemp();
+}
+
+esp_err_t emulateT(DsType dtype, float t){
+	int dsIndex=-1;
+	DS18 *d;
+
+	for (int i=0;i<ds18_devices;i++){
+		d = &ds[i];
+		if (d->type==dtype) {
+			dsIndex = i;
+			break;
+		}
+	}
+
+	if (dsIndex<0){ //DS заданного типа не найден среди подключенных
+		if (ds18_devices>=MAX_DS) return ESP_FAIL;
+		d = &ds[ds18_devices];
+		d->type = dtype;
+		memset(d->adressStr, 0, sizeof(d->adressStr));
+		sprintf(d->adressStr,"emu%d",dtype);
+		d->talert = 100.0;
+		ds18_devices++;
+	}
+	if (!d->emulated) d->emulated = true;
+	d->Ce=t;
+	return ESP_OK;
+}
+
+cJSON*  getDSjson(void){
+	cJSON *j, *jt;
+	j = cJSON_CreateArray();
+	char buf[10];
+
+	for (int i=0; i<MAX_DS; i++) {
+		DS18 *d = &ds[i];
+		if (!((d->is_connected) || (d->emulated))) continue;
+		jt = cJSON_CreateObject();
+		cJSON_AddItemToArray(j, jt);
+
+		cJSON_AddItemToObject(jt, "id", cJSON_CreateNumber(d->id));
+
+		if (d->emulated){
+			cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
+			cJSON_AddItemToObject(jt, "descr", cJSON_CreateString("emu"));
+		}
+		else {
+			cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
+			cJSON_AddItemToObject(jt, "descr", cJSON_CreateString(d->description?d->description:""));
+		}
+
+		cJSON_AddItemToObject(jt, "type_str", cJSON_CreateString(getDsTypeStr(d->type)));
+		cJSON_AddItemToObject(jt, "type", cJSON_CreateNumber(d->type));
+		cJSON_AddItemToObject(jt, "corr", cJSON_CreateNumber(d->corr));
+		cJSON_AddItemToObject(jt, "talert", cJSON_CreateNumber(d->talert));
+		//cJSON_AddItemToObject(jt, "temp", cJSON_CreateNumber(d->Ce));
+		snprintf(buf, sizeof(buf)-1, "%02.2f", d->Ce);
+		cJSON_AddItemToObject(jt, "temp", cJSON_CreateString(buf));
+	}
+	return j;
 }

@@ -12,12 +12,29 @@
 #ifndef MAIN_DEBUG_H_
 #define MAIN_DEBUG_H_
 
+
+//#define DEBUG
+//#define DEBUG1  // детальная отладка
+//#define DEBUGV	// отладка клапанов
+
 #ifdef DEBUG
-#define DBGT( tag, format, ... ) ESP_LOGI(tag, format, ##__VA_ARGS__)
-#define DBG( format, ... ) ESP_LOGI(__func__, format, ##__VA_ARGS__)
+ #define DBGT( tag, format, ... ) ESP_LOGI(tag, format, ##__VA_ARGS__)
+ #define DBG( format, ... ) ESP_LOGI(__func__, format, ##__VA_ARGS__)
 #else
-#define DBGT( tag, format, ... )
-#define DBG( format, ... )
+ #define DBGT( tag, format, ... )
+ #define DBG( format, ... )
+#endif
+
+#ifdef DEBUGV
+ #define DBGV( format, ... ) DBG(__func__, format, ##__VA_ARGS__)
+#else
+ #define DBGV( format, ... )
+#endif
+
+#ifdef DEBUG1
+#define DBG1( format, ... ) DBG(__func__, format, ##__VA_ARGS__)
+#else
+#define DBG1( format, ... )
 #endif
 
 

@@ -32,11 +32,11 @@ License (MIT license):
 
 #define CONFIG_REALM "ESP32"
 #define DEFAULT_HOST "hd_esp32"
-#define DEFAULT_USERNAME "yuri"
+#define DEFAULT_USERNAME "hduser"
 #define DEFAULT_PASSWORD "12345"
 
-#define FIRMWARE_UPDATE_URL "http://hd.rus.net/"
-#define ESP32_VERSION "0.7.4.2"
+#define FIRMWARE_UPDATE_URL "http://192.168.0.79/"
+#define ESP32_VERSION "0.7.4.4"
 
 #define WiFiStateConnected      0
 #define WiFiStateWaitToConnect  1

@@ -39,14 +39,16 @@ typedef enum {
 
 // Аварийные состояния
 typedef enum {
-	NO_ALARM    =0x0,		// Нет аварии
-	ALARM_TEMP  =0x2,		// Авария по превышению температуры
-	ALARM_WATER =0x4,		// Авария: отсутствие воды охлаждения
-	ALARM_FREQ  =0x8, 		// Авария: отсутствие напряжения сети
-	ALARM_NOLOAD=0x10,		// Авария: отсутствие подключения нагрузки
-	ALARM_EXT   =0x20, 		// Авария от внешнего источника
-	ALARM_OVER_POWER= 0x40, // Авария: мощность превышает заданную
-	ALARM_PZEM_ERR	= 0x80 // Авария: отказ контроля мощности
+	NO_ALARM    			=0,			// Нет аварии
+	ALARM_SENSOR_ERR=(1<<0),// Авария: сбой датчиков температуры
+	ALARM_TEMP  			=(1<<1),	// Авария по превышению температуры
+	ALARM_WATER 		=(1<<2),	// Авария: отсутствие воды охлаждения
+	ALARM_EXT   			=(1<<3), 	// Авария от внешнего источника
+
+	ALARM_FREQ  			=(1<<4), 	// Авария: отсутствие напряжения сети
+	ALARM_NOLOAD		=(1<<5),	// Авария: отсутствие подключения нагрузки
+	ALARM_OVER_POWER=(1<<6),// Авария: мощность превышает заданную
+	ALARM_PZEM_ERR		= (1<<7) // Авария: отказ контроля мощности
 } alarm_mode;
 
 typedef enum {
@@ -60,18 +62,25 @@ typedef struct  {
  } valveCMDmessage_t;
 
 
-#define START_WAIT	0	// Ожидание запуска процесса
-#define PROC_START	1	// Начало процесса
+#define START_WAIT		0	// Ожидание запуска процесса
+#define PROC_START		1	// Начало процесса
 #define PROC_RAZGON	2	// Разгон до рабочей температуры
-#define PROC_STAB	3	// Стабилизация температуры
-#define PROC_GLV	4	// Отбор головных фракций
-#define PROC_T_WAIT	5       // Ожидание стабилизации температуры
-#define PROC_SR		6	// Отбор СР
-#define PROC_DISTILL	PROC_SR	// Дистилляция
-#define PROC_HV		7	// Отбор хвостовых фракций
+#define PROC_STAB			3	// Стабилизация температуры
+#define PROC_GLV			4	// Отбор головных фракций
+#define PROC_T_WAIT		5       // Ожидание стабилизации температуры
+#define PROC_SR				6	// Отбор СР
+#define PROC_HV			7	// Отбор хвостовых фракций
 #define PROC_WAITEND	8	// Отключение нагрева, подача воды для охлаждения
-#define PROC_END	100	// Окончание работы
+#define PROC_END_			9	// Окончание работы
+#define PROC_END			100	// Окончание работы
 
+#define PROC_DISTILL		PROC_SR	// Дистилляция
+
+
+ typedef struct {
+ 	uint16_t prevState;
+ 	uint16_t nextState;
+ } state_vector_t;
 
 extern char *Hostname;		// Имя хоста
 extern char *httpUser;		// Имя пользователя для http
@@ -90,7 +99,7 @@ extern int16_t WaterOn;		// Флаг включения контура охла�
 extern float TempWaterIn;	// Температура воды на входе в контур
 extern float TempWaterOut;	// Температура воды на выходе из контура
 extern int16_t WaterFlow;	// Значения датчика потока воды.
-
+extern int16_t fAlarmSoundOff; //флаг выключения звука аварии
 
 //#define NO_BEEP
 
@@ -148,8 +157,26 @@ extern klp_list Klp[MAX_KLP];		// Список клапанов.
 
 extern volatile int zero_imp_shift;
 
-void myBeep(bool lng);		// Включаем бипер
+#define EXISTS_ALARM(A)  (AlarmMode & (A))
+#define CLEAR_ALARM(A)  do {AlarmMode &= ~(A);} while(0)
+#define SET_ALARM(A)  do {AlarmMode |= (A);} while(0)
+#define ERR_MSG( format, ... ) ESP_LOGE(__func__, format, ##__VA_ARGS__)
 
+#define NO_LOG
+#ifndef NO_LOG
+#define LOG( format, ... ) do { \
+		ESP_LOGI(__func__, format, ##__VA_ARGS__); \
+		char data[80]; \
+		snprintf(data, sizeof(data)-1, format, ##__VA_ARGS__); \
+		write2log(data);\
+	} while(0)
+#else
+#define LOG( format, ... ) do { \
+		ESP_LOGI(__func__, format, ##__VA_ARGS__); \
+	} while(0)
+#endif
+
+void myBeep(bool lng);		// Включаем бипер
 
 void PZEM_init(void);
 bool PZEMv30_updateValues(void);
@@ -165,14 +192,18 @@ const char *getResetReasonStr(void); // Получение строки о пр�
 
 cJSON* getInformation(void);
 
+void write2log(const char* s);
+
 void sendSMS(char *text);	// Отправка SMS
 void Rectification(void);	// Обработка состояний в режиме ректификации
 void setPower(int16_t pw);	// Установка рабочей мощности
 void setMainMode(int new_mode);	// Установка нового режима работы
-void setStatus(int next);	// Ручная установка состояния конечного автомата
-void setNewMainStatus(int16_t newStatus);
+void moveStatus(int next);	// изменение состояния конечного автомата, вперед или назад
+void set_status(int16_t newStatus);
 
 void setTimezone(int gmt_offset);
+void setTempStabSR(double newValue);
+void setNewProcChimSR(int16_t newValue);
 
 void closeAllKlp(void);		// Закрытие всех клапанов.
 void openKlp(int i);		// Открытие клапана воды
@@ -180,7 +211,6 @@ void closeKlp(int i);		// Закрытие определенного клапа
 void startKlpPwm(int i, float topen, float tclose); // Запуск шима клапана
 
 void start_valve_PWMpercent(int valve_num, int period_sec, int percent_open);
-
 
 int hd_httpd_init(void);	// Запуск http сервера
 int hd_display_init(void);	// Запуск обработчика дисплея

@@ -19,7 +19,7 @@ Esp8266 http server - core routines
 //This gets set at init time.
 static HttpdBuiltInUrl *builtInUrls;
 
-xSemaphoreHandle wsLock;
+xSemaphoreHandle wsLock=NULL;
 
 typedef struct HttpSendBacklogItem HttpSendBacklogItem;
 

@@ -26,7 +26,7 @@ input {background-color: #dfdfdf; padding: 5px;}</style>
 <H2>hd_ESP32 - Обновление системы</H2>
 <div class="bold">Текущая версия: <span id='f_v'>0.0</span></div>
 <div id=f_i class=fs>Получение информации..</div>
-<div id=f_e class=fs>Оимбка получения информации. Проверьте интернет соединение.</div>
+<div id=f_e class=fs>Ошибка получения информации. Проверьте интернет соединение.</div>
 <div id=f_l class=fs>Последняя версия. Нет необходимости в обновлении.</div>
 <div id=f_a class=fs>Последняя версия: <span id=newversion></span></div>
 <div>Url для обновления: <input type="text" name="url" id="url" value="http://hd.rus.net" /></div>
