@@ -1003,13 +1003,13 @@ const state_vector_t rect_states[]={
 const state_vector_t dist_states[]={
 	 {START_WAIT  	/* START_WAIT*/,	PROC_START},
 	 {START_WAIT  	/* PROC_START*/,	PROC_RAZGON},
-	 {START_WAIT  	/* PROC_RAZGON*/,	PROC_GLV},
-	 {PROC_RAZGON	/* PROC_STAB	*/,	PROC_GLV}, 			//inapplicable
+	 {START_WAIT  	/* PROC_RAZGON*/,	PROC_DISTILL},
+	 {PROC_RAZGON	/* PROC_STAB	*/,	PROC_DISTILL}, 			//inapplicable
 	 {PROC_RAZGON	/* PROC_GLV		*/,	PROC_DISTILL},
-	 {PROC_GLV			/* PROC_T_WAIT*/,	PROC_DISTILL},	//inapplicable
-	 {PROC_GLV			/* PROC_DISTILL*/,	PROC_HV},
+	 {PROC_RAZGON	/* PROC_T_WAIT*/,	PROC_DISTILL},	//inapplicable
+	 {PROC_RAZGON	/* PROC_DISTILL*/,	PROC_WAITEND},
 	 {PROC_DISTILL	/* PROC_HV		*/,	PROC_WAITEND},
-	 {PROC_HV			/* PROC_WAITEND*/,PROC_END},
+	 {PROC_DISTILL	/* PROC_WAITEND*/,PROC_END},
 	 {PROC_WAITEND	/* PROC_END_	*/,	START_WAIT}
 };
 
@@ -1486,6 +1486,7 @@ void Distillation(void)
 	double t;
 	char b[80];
 	static int16_t prev_status=START_WAIT;
+	static float controlT;
 
 	switch (MainStatus) {
 	case START_WAIT:
@@ -1542,19 +1543,38 @@ void Distillation(void)
 		set_status(PROC_WAITEND);			// @suppress("No break at end of case")
 		 /* fall through */
 
-	case PROC_WAITEND:
-		// Отключение нагрева, подача воды для охлаждения
+	case PROC_WAITEND:	// Отключение нагрева, подача воды для охлаждения
+#define DISTILL_COOLDOWN_DETLTA_T 1.0
+		// старт
 		if (prev_status!=MainStatus){
-			prev_status=MainStatus;
-			closeKlp(klp_sr);
-			openKlp(klp_water);
 			setPower(0);		// Снятие мощности с тэна
-			secTempPrev = uptime_counter;
+			closeKlp(klp_glwhq); 	// Отключение клапана отбора голов/хвостов
+			if (prev_status!=PROC_HV) { // если попали сюда не штатно, после отбора хвоста, а после рестарта то
+				openKlp(klp_water);		// Открытие клапана воды
+				closeKlp(klp_sr); 			// Отключение клапана продукта
+			}
+			controlT = getCubeTemp()-DISTILL_COOLDOWN_DETLTA_T; // фиксируем текущую T
+			secTempPrev = uptime_counter; // и текущее время
+			prev_status=MainStatus;
+			if (controlT>0){
+				LOG("PROC_COOLDOWN (till Tcube:%5.1f)",controlT);
+			}
+			else {
+				LOG("PROC_COOLDOWN (for 180 sec)");
+			}
 		}
 
-		if ((uptime_counter - secTempPrev) < 180) break;
-
-		set_status(PROC_END); // @suppress("No break at end of case")
+		//  контроль завершения
+		if (controlT>0) { // датчик исправен, контролируем завершение охлаждения по нему
+			//ждем когда Т куба снизится до контрольной температуры
+			if (getCubeTemp() > controlT) break;
+		}
+		else { // иначе контроль завершения по времени
+			if ((uptime_counter - secTempPrev) < 180) break; //ждем 180 секунд
+		}
+		//  завершение
+		set_status(PROC_END);
+		if (getIntParam(DEFL_PARAMS, "beepChangeState")) myBeep(true);
 
 	case PROC_END:
 		// Окончание работы
