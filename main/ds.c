@@ -35,6 +35,7 @@ License (MIT license):
 #include "hd_main.h"
 #include "hd_spi_i2c.h"
 #include "ds.h"
+#include "debug.h"
 
 #ifndef max
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -99,8 +100,6 @@ uint8_t maxBitResolution = 9;
 static int ds_gpio;
 unsigned char ow_rom_codes[MAX_DS][9];
 uint8_t ow_devices;	// count of devices on the bus
-uint8_t emulate_devices=0;	// Режим эмуляции температуры
-double testCubeTemp = 20;	// Тестовое значение кубовой температуры
 
 static unsigned char ROM_NO[8];
 static uint8_t LastDiscrepancy;
@@ -1131,17 +1130,19 @@ int16_t ds_getTemp(DS18 *ds)
 float ds_getTempC(DS18 *ds)
 {
 	if (!ds) return -1;
-	int16_t newT=ds_getTemp(ds);
-	if  (newT==DEVICE_DISCONNECTED_RAW){ 		// if incorrect value from the sensor
-		if  (ds->errcount<DS_ERR_LIMIT) {				// check errors limit, if it isn't exeeded
-			ds->errcount++; 										// just add counter of errors
-			return ds->Ce;											// and return the previous correct T
-		}
-		else																//if errors limit is exceeded
-			return (ds->Ce = rawToCelsius(newT));		// return new T "as is"
-	} else  																// if T correct, so
-		if (ds->errcount) ds->errcount=0; 					// reset the errors counter to 0
-	ds->Ce = rawToCelsius(newT) + ds->corr;
+	if (!ds->emulated) {
+		int16_t newT=ds_getTemp(ds);
+		if  (newT==DEVICE_DISCONNECTED_RAW){ 		// if incorrect value from the sensor
+			if  (ds->errcount<DS_ERR_LIMIT) {				// check errors limit, if it isn't exeeded
+				ds->errcount++; 										// just add counter of errors
+				return ds->Ce;											// and return the previous correct T
+			}
+			else																//if errors limit is exceeded
+				return (ds->Ce = rawToCelsius(newT));		// return new T "as is"
+		} else  																// if T correct, so
+			if (ds->errcount) ds->errcount=0; 					// reset the errors counter to 0
+		ds->Ce = rawToCelsius(newT) + ds->corr;
+	}
 	return ds->Ce;
 }
 
@@ -1222,24 +1223,23 @@ void ds_task(void *arg)
 			vTaskDelay(1000/portTICK_PERIOD_MS);
 			continue;
 		}
-
 		xSemaphoreTake(ow_mux, portMAX_DELAY);
 		ds_requestTemperatures();
 		alarmT = false;
 		for (int i=0; i<MAX_DS; i++) {
 			DS18 *d = &ds[i];
-			if (!d->is_connected) continue;
-			if (!d->emulated) ds_getTempC(d);
+			if (!((d->is_connected)||(d->emulated))) continue;
+			ds_getTempC(d);
 			alarmT |= (d->Ce >= d->talert);
 		}
 
 		if (alarmT) {
-			AlarmMode |= ALARM_TEMP;
+			SET_ALARM(ALARM_TEMP);
 			if (! (SavedAlarmMode&ALARM_TEMP)) {
 				sendSMS("Temperature alarm! power switched off!");
 			}
 		} else {
-			AlarmMode &= ~(ALARM_TEMP);
+			CLEAR_ALARM(ALARM_TEMP);
 		}
 		SavedAlarmMode = AlarmMode;
 		xSemaphoreGive(ow_mux);

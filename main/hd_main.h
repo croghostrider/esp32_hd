@@ -111,7 +111,7 @@ extern int16_t fAlarmSoundOff; //флаг выключения звука ава
 #define GPIO_OFF(A)
 #endif
 
-#define SEC_TO_TICKS(A) ((uint32_t)((A)*1000)/portTICK_PERIOD_MS)
+#define SEC_TO_TICKS(A) ((uint32_t)((A)*1000 + portTICK_PERIOD_MS/2)/portTICK_PERIOD_MS)
 
 #define TRIAC_CONTROL_LED_FREQ_HZ 50
 // TRIAC is kept high for TRIAC_GATE_IMPULSE_CYCLES PWM counts before setting low.
@@ -210,7 +210,7 @@ void openKlp(int i);		// Открытие клапана воды
 void closeKlp(int i);		// Закрытие определенного клапана
 void startKlpPwm(int i, float topen, float tclose); // Запуск шима клапана
 
-void start_valve_PWMpercent(int valve_num, int period_sec, int percent_open);
+void start_valve_PWMpercent(int valve_num, float period_sec, float percent_open);
 
 int hd_httpd_init(void);	// Запуск http сервера
 int hd_display_init(void);	// Запуск обработчика дисплея

@@ -17,7 +17,7 @@ static const char updateIndexHtml[] = R"END(
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
 <title>HD32 Update page</title>
-<style>.fs{display:none}body,html{font-family: Arial;line-height: 1.2em; font-size: 14px; background-color:#FFFFFF;}
+<style>.fs{display:none}body,html{line-height: 1.2em; font-size: 14px; background-color:#FFFFFF;}
 input {background-color: #dfdfdf; padding: 5px;}</style>
 <script src='http://hd.rus.net/jq.js'></script>
 </head>

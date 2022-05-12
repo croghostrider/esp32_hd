@@ -26,7 +26,7 @@
 #endif
 
 #ifdef DEBUGV
- #define DBGV( format, ... ) DBG(__func__, format, ##__VA_ARGS__)
+ #define DBGV( format, ... ) DBG(format, ##__VA_ARGS__)
 #else
  #define DBGV( format, ... )
 #endif

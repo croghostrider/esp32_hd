@@ -57,8 +57,9 @@ vaiable_list DEFL_PARAMS[] =
 {
 	{"maxPower",		VARIABLE_INT,	0,	15000,	"2000",	NULL},
 	{"ustPowerReg",		VARIABLE_INT,	0,	15000,	"900",	NULL},
-	{"tempEndRectRazgon",	VARIABLE_FLOAT, 0,	120,	"83.0",	NULL},
 	{"powerRect",		VARIABLE_INT,	0,	15000,	"1000",	NULL},
+
+	{"tempEndRectRazgon",	VARIABLE_FLOAT, 0,	120,	"83.0",	NULL},
 	{"tEndRectOtbGlv",	VARIABLE_FLOAT, -9999,	120,	"85.4",	NULL},   //отрицательное значение: время отбора голов в минутах
 	{"timeChimRectOtbGlv",	VARIABLE_INT,	0,	10000,	"20",	 NULL},
 	{"procChimOtbGlv",	VARIABLE_INT,	0,	101,	"5",	NULL},
@@ -68,6 +69,7 @@ vaiable_list DEFL_PARAMS[] =
 	{"tempDeltaRect",	VARIABLE_FLOAT, 0,	120,	"0.3",	NULL},
 	{"tempEndRectOtbSR",	VARIABLE_FLOAT, -120,	120,	"96.5", NULL}, // отрицательное значение: ТTube20, положительное: T куба
 	{"tempEndRect",		VARIABLE_FLOAT, 0,	120,	"99.5", NULL},
+
 	{"p_MPX5010",		VARIABLE_INT,	0,	100,	"0",	NULL},
 	{"timeStabKolonna",	VARIABLE_INT,	0,	3500,	"900",	NULL},
 	{"timeRestabKolonna",	VARIABLE_INT,	0,	3500,	"1800", NULL},
@@ -81,7 +83,8 @@ vaiable_list DEFL_PARAMS[] =
 	{"beepChangeState", 	VARIABLE_CHECKBOX, 0,	1,	"1",	NULL},
 
 	{"powerDistil",		VARIABLE_INT,	0,	15000,	"1000", NULL},
-	{"tempEndDistil",	VARIABLE_FLOAT,	0,	120,	"99.5", NULL},
+	{"tEndDistRazgon",VARIABLE_FLOAT, -2000,	120,	"85.0",	NULL},
+	{"tEndDistil",	     VARIABLE_FLOAT,	-2000,	120,	"99.5", NULL},
 
 	{"processGpio",		VARIABLE_INT,	0,	40,	"0",	NULL},
 	{"klp1_isPWM", 		VARIABLE_CHECKBOX, 0,	1,	"0",	NULL},

@@ -229,9 +229,9 @@ void alarmControlTask(void *arg){
 
 		if ((EXISTS_ALARM(ALARM_OVER_POWER) && offByoverPwr) ||  (EXISTS_ALARM(ALARM_TEMP) &&  offByT))
 		{
-			ERR_MSG("start DIFF-OFF proc. Delay (%d sec). Alarm:%d",vDIFFoffDelaySec,AlarmMode);
+			//ERR_MSG("start DIFF-OFF proc. Delay (%d sec). Alarm:%d",vDIFFoffDelaySec,AlarmMode);
 			for (int i=0;i<vDIFFoffDelaySec;i++){// задержка выключения диф-автомата
-				shortBeep();
+				if (!fAlarmSoundOff) shortBeep();
 				vTaskDelay(SEC_TO_TICKS(1));
 			}
 			if (((EXISTS_ALARM(ALARM_OVER_POWER) && offByoverPwr) ||  (EXISTS_ALARM(ALARM_TEMP) &&  offByT)))
@@ -376,7 +376,7 @@ void pzem_task(void *arg)
 
 		//======
 		if ((SetPower <= 0) || EXISTS_ALARM(ALARM_FREQ | ALARM_NOLOAD | ALARM_PZEM_ERR | ALARM_TEMP | ALARM_SENSOR_ERR)) {
-			DBG("SetPower:%d  Alarm:%d",SetPower, AlarmMode);
+			//DBG("SetPower:%d  Alarm:%d",SetPower, AlarmMode);
 			Hpoint = HMAX;
 			continue;
 		}
@@ -386,7 +386,7 @@ void pzem_task(void *arg)
 		int errPercent = abs((errP*100 + SetPower/2)/SetPower);
 
 		if ((errP==0)||(errPercent==0)) { // precision is 1%
-			DBG("STABLE cur:%d(%d) errPrc:%d Hpoint:%d",CurPower,SetPower,errPercent,Hpoint);
+			//DBG("STABLE cur:%d(%d) errPrc:%d Hpoint:%d",CurPower,SetPower,errPercent,Hpoint);
 			continue;
 		}
 		int voltagePower = powerPrcByHpoint(Hpoint);
@@ -398,7 +398,7 @@ void pzem_task(void *arg)
 		else	{ // CurPower>0
 			//--- number real watts on one percent of the voltage power
 			double WattsOn1PrcVoltagePwr =(double)(CurPower)/(double)(voltagePower);
-			DBG("WattsOn1PrcVoltagePwr:%4.1f",WattsOn1PrcVoltagePwr);
+			//DBG("WattsOn1PrcVoltagePwr:%4.1f",WattsOn1PrcVoltagePwr);
 			int calcHpoint;
 
 			if (errPercent>50){
@@ -415,14 +415,14 @@ void pzem_task(void *arg)
 
 			Hpoint += increment;
 			//zero_imp_shift = getIntParam(NET_PARAMS, "z_shift");
-			DBG("===zshift:%d max_hpoint:%d",zero_imp_shift, HMAX-zero_imp_shift);
+			//DBG("===zshift:%d max_hpoint:%d",zero_imp_shift, HMAX-zero_imp_shift);
 			if (Hpoint >= (HMAX-zero_imp_shift) ) {
 				Hpoint = (HMAX-zero_imp_shift);
 			}
 			if (Hpoint<zero_imp_shift) {
 				Hpoint=zero_imp_shift;
 			}
-			DBG("===set:%d cur:%d hp:%d inc:%d",SetPower, CurPower, Hpoint, increment);
+			//DBG("===set:%d cur:%d hp:%d inc:%d",SetPower, CurPower, Hpoint, increment);
 		}// triac angle correction, as CurPower>0
 	}//while(1)
 }
@@ -459,13 +459,13 @@ const char *getMainStatusStr(void)
 		case START_WAIT: return "Ожидание запуска процесса";
 		case PROC_START: return "Начало процесса";
 		case PROC_RAZGON: return "Разгон";
-		case PROC_STAB: return "Стабилизация колонны";
+		case PROC_STAB: return "Стабилизация Т колонны";
 		case PROC_GLV: return "Отбор головных фракций";
 		case PROC_T_WAIT: return "Рестабилизация по стопу";
 		case PROC_SR: return "Отбор СР";
 		case PROC_HV: return "Отбор хвостовых фракций";
 		case PROC_WAITEND: return "Охлаждение куба";
-		default: return "Завершение работы";
+		default: return "Процесс завершен";
 		}
 		break;
 	default:
@@ -549,17 +549,18 @@ const char *getResetReasonStr(void)
 void valvePWMtask(void *arg){
 	int num=(int)arg;
 	TickType_t xLastWakeTime=xTaskGetTickCount ();
+
 	DBGV("======started v:%d",num);
 	while(1) {
 		if (Klp[num].is_pwm) {
-			DBGV("pwmON |%04.1f sec|",Klp[num].open_time);
-			if (Klp[num].open_time>0.2) { //if time less 0.2 sec do nothing
+			DBGV("pwmON |%.1f sec|",Klp[num].open_time);
+			if (Klp[num].open_time>0.15) { //if time less 0.2 sec do nothing
 				cmd2valve (num, cmd_open);				//turn-on valve
 				vTaskDelayUntil( &xLastWakeTime, SEC_TO_TICKS(Klp[num].open_time));
 			}
 
 			if (Klp[num].is_pwm){
-				DBGV("pwmOFF|%04.1f sec|",Klp[num].close_time);
+				DBGV("pwmOFF|%.1f sec|",Klp[num].close_time);
 				if (Klp[num].close_time>0.2) { //if time less 0.2 sec do nothing
 					cmd2valve (num, cmd_close); //turn-off valve
 					vTaskDelayUntil( &xLastWakeTime, SEC_TO_TICKS(Klp[num].close_time));
@@ -567,7 +568,7 @@ void valvePWMtask(void *arg){
 			}
 		}
 
-		if (!Klp[num].is_pwm)	{  // if no pwm
+		if (! Klp[num].is_pwm)	{  // if no pwm
 			DBGV("suspend v:%d",num);
 			vTaskSuspend(NULL);	// stop the task (it will be resumed when pwm is turn-on in func startKlpPwm() )
 			DBGV("resume  v:%d",num);
@@ -775,7 +776,7 @@ cJSON* getInformation(void)
 	j = cJSON_CreateArray();
 	cJSON_AddItemToObject(ja, "klapans", j);
 	for (int i=0; i<MAX_KLP; i++) {
-		int pwm = Klp[i].open_time+Klp[i].close_time;
+		float pwm =  (Klp[i].open_time+Klp[i].close_time);
 		float pwm_percent = 0;
 		if (Klp[i].open_time>0) {
 			float p = pwm/Klp[i].open_time;
@@ -1095,8 +1096,8 @@ bool end_condition_SR(void){
 }
 
 esp_err_t sensor_err(double t){
-	if (-1 == t) { // сбой датчика
-		DBG("error DS of '20%% tube'");
+	if (t == -1.0) { // сбой датчика
+		DBG("error'");
 		SET_ALARM(ALARM_SENSOR_ERR);
 		return ESP_FAIL;
 	}
@@ -1123,6 +1124,7 @@ void Rectification(void)
 	case PROC_START:
 		// Начало процесса
 		LOG("START");
+		ProcChimSR=0;
 		set_status(PROC_RAZGON); // @suppress("No break at end of case")
 		 /* fall through */
 
@@ -1256,6 +1258,7 @@ void Rectification(void)
 				if (!broken_proc){
 					setTempStabSR(t); // начальная температура стабилизации
 					setNewProcChimSR(getIntParam(DEFL_PARAMS, "beginProcChimOtbSR")); // стартовый % отбора тела
+					DBG("broken or HEAD init PWM:%d  init Tstab:%5.1f",getIntParam(DEFL_PARAMS, "beginProcChimOtbSR"),t);
 				}
 				set_proc_power("powerRect");  //задаем мощность ректификации
 			}
@@ -1300,7 +1303,9 @@ void Rectification(void)
 				closeKlp(klp_glwhq); 		// Отключение клапана отбора голов/хвостов
 				set_proc_power("powerRect");
 			}
-			setNewProcChimSR(GetSrPWM());// PWM отбора (по-шпоре)
+			int pwm=GetSrPWM();// PWM отбора (по-шпоре)
+			DBG("pwm by shpora %d",pwm);
+			setNewProcChimSR(pwm);
 			int period=getIntParam(DEFL_PARAMS, "timeChimRectOtbSR");
 			start_valve_PWMpercent	// включаем медленный ШИМ клапана продукта
 			  ( klp_sr,
@@ -1340,13 +1345,16 @@ void Rectification(void)
 			if (decrementCHIM>=0) { // положительное значение: декремент в абсолютном значении процентов
 				pwm_sr -= decrementCHIM; // вычтем из текущего %отбора
 			} else {// отрицательное значение: декремент относительный, в процентах от текущего %та
-				uint16_t v = (ProcChimSR * (-decrementCHIM + 50))/100; // рассчитали величину декремента
+				uint16_t v = (ProcChimSR * (-decrementCHIM) + 50)/100; // рассчитали величину декремента
 				if (v<=0) v=1; 	// если декремент получился ноль, зададим 1
 				pwm_sr -= v; 	// уменьшим % отбора на расчитанную величину
 			}
 			if (pwm_sr < minProcChimOtbSR)	pwm_sr = minProcChimOtbSR;
 			LOG("dec PWM %d->%d",ProcChimSR,pwm_sr);
-			if (ProcChimSR != pwm_sr)	 setNewProcChimSR(pwm_sr);
+			if (ProcChimSR != pwm_sr)	{
+				DBG("set dec pwm %d",pwm_sr);
+				setNewProcChimSR(pwm_sr);
+			}
 
 			//-- переключение на рестабилизацию
 			set_status(PROC_T_WAIT);
@@ -1359,18 +1367,21 @@ void Rectification(void)
 		if (ProcChimSR<100){
 			int timeAutoIncCHIM = getIntParam(DEFL_PARAMS, "timeAutoIncCHIM");
 			if ((timeAutoIncCHIM>0) && ((uptime_counter - secTempPrev) > timeAutoIncCHIM) ) {
+				DBG("inc");
 				if (ProcChimSR > minProcChimOtbSR) {	// Шим прибавляем только если не минимальный
 					int incrementCHIM = getIntParam(DEFL_PARAMS, "incrementCHIM");
 					int pwm=ProcChimSR;
 					if (incrementCHIM>=0) {	// инкремент - абсолютное значение
 						pwm += incrementCHIM;
 					} else {								// инкремент - процент от текущих % отбора
-						pwm +=  ProcChimSR*(-incrementCHIM + 50)/100;
+						pwm +=  (ProcChimSR*(-incrementCHIM) + 50)/100;
 						if (pwm == ProcChimSR) pwm++;
 					}
+
 					if (pwm>100) pwm=100;
-					LOG("inc PWM %d->%d",ProcChimSR,pwm);
-					if (ProcChimSR != pwm)	 setNewProcChimSR(pwm);
+					LOG("inc PWM %d->%d",ProcChimSR, pwm);
+
+					setNewProcChimSR(pwm);
 					//--- перезапускаем медленный ШИМ с новым % отбора
 					start_valve_PWMpercent
 					  ( klp_sr, // клапан продукта
@@ -1380,7 +1391,7 @@ void Rectification(void)
 				}
 				secTempPrev = uptime_counter;
 			} //auto-increment block
-		}
+		} //pwm<100
 
 		// проверим - можно ли продолжать отбор тела?
 		if (! end_condition_SR())	{
@@ -1483,7 +1494,7 @@ void Rectification(void)
 // Обработка состояний в режиме дистилляции
 void Distillation(void)
 {
-	double t;
+	float t, t_end;
 	char b[80];
 	static int16_t prev_status=START_WAIT;
 	static float controlT;
@@ -1494,12 +1505,12 @@ void Distillation(void)
 			prev_status=MainStatus;
 			closeAllKlp();
 			if (SetPower) setPower(0);
-			startPressure = bmpTruePressure; // Фиксация атм. давления.
 		}
 		// Ожидание запуска процесса
 		break;
 
 	case PROC_START:		// Начало процесса
+		startPressure = bmpTruePressure; // Фиксация атм. давления.
 		set_status(PROC_RAZGON); // @suppress("No break at end of case")
 		/* fall through */
 
@@ -1511,48 +1522,51 @@ void Distillation(void)
 		}
 
 		t = getCubeTemp();
-		if (-1 == t) { // сбой датчика
-			ESP_LOGE(TAG, "error DS of CUB'");
-			SET_ALARM(ALARM_SENSOR_ERR);
+		if (sensor_err(t)){ // сбой датчика
 			break;
 		}
-		else {
-			CLEAR_ALARM(ALARM_SENSOR_ERR);
-		}
 
-		if (t < getFloatParam(DEFL_PARAMS, "tempEndRectRazgon")) break;
+		if (t < getFloatParam(DEFL_PARAMS, "tEndDistRazgon")) break;
 		// go to next
 		set_status(PROC_DISTILL); // @suppress("No break at end of case")
 		 /* fall through */
 
 	case PROC_DISTILL:		// Процесс дистилляции
+		t = getCubeTemp();
+		t_end = getFloatParam(DEFL_PARAMS, "tEndDistil");
 		if (prev_status!=MainStatus){
-			prev_status=MainStatus;
-			closeKlp(klp_glwhq);
 			openKlp(klp_water);
 			openKlp(klp_sr);
+			closeKlp(klp_glwhq);
 			set_proc_power("powerDistil"); // Мощность дистилляции
+			prev_status=MainStatus;
+			if (t_end < 0){ // настроен отбор по времени
+				secTempPrev = uptime_counter + (-(uint32_t)t_end*60); // фиксируем время завершения отбора
+			}
 		}
 
-		t = getCubeTemp();
-		if (t < getFloatParam(DEFL_PARAMS, "tempEndDistil")) {
-			break;
+		if (t_end<0) {
+			if (uptime_counter<secTempPrev) break; // ждем времени завершения
 		}
-
+		else {
+			if (sensor_err(t)){ // сбой датчика
+				break;
+			}
+			if (t < t_end) break; // ждем температуру завершения
+		}
 		//Завершение
-		set_status(PROC_WAITEND);			// @suppress("No break at end of case")
-		 /* fall through */
+		set_status(PROC_WAITEND);	 //@suppress("No break at end of case")
+		//break;
+
 
 	case PROC_WAITEND:	// Отключение нагрева, подача воды для охлаждения
 #define DISTILL_COOLDOWN_DETLTA_T 1.0
 		// старт
 		if (prev_status!=MainStatus){
 			setPower(0);		// Снятие мощности с тэна
-			closeKlp(klp_glwhq); 	// Отключение клапана отбора голов/хвостов
-			if (prev_status!=PROC_HV) { // если попали сюда не штатно, после отбора хвоста, а после рестарта то
-				openKlp(klp_water);		// Открытие клапана воды
-				closeKlp(klp_sr); 			// Отключение клапана продукта
-			}
+			openKlp(klp_water);		// Открытие клапана воды
+			closeKlp(klp_glwhq); 	    // Отключение клапана отбора голов/хвостов
+			closeKlp(klp_sr); 			// Отключение клапана продукта
 			controlT = getCubeTemp()-DISTILL_COOLDOWN_DETLTA_T; // фиксируем текущую T
 			secTempPrev = uptime_counter; // и текущее время
 			prev_status=MainStatus;
@@ -1574,7 +1588,8 @@ void Distillation(void)
 		}
 		//  завершение
 		set_status(PROC_END);
-		if (getIntParam(DEFL_PARAMS, "beepChangeState")) myBeep(true);
+		if (getIntParam(DEFL_PARAMS, "beepChangeState")) myBeep(true); // @suppress("No break at end of case")
+		//break;
 
 	case PROC_END:
 		// Окончание работы
@@ -1647,7 +1662,7 @@ inline void closeKlp(int i)
 void startKlpPwm(int i, float topen, float tclose)
 {
 	if (i>=MAX_KLP) return;
-	DBGV( "PWM klp %d %04.1f/%5.1f", i, topen, tclose);
+	DBGV( "PWM klp %d %.1f/%.1f", i, topen, tclose);
 	Klp[i].open_time = topen;	// Время в течении которого клапан открыт
 	Klp[i].close_time = tclose;	// Время в течении которого клапан закрыт
 	Klp[i].is_pwm = true;	// Запускаем медленный Шим режим
@@ -1665,11 +1680,12 @@ void startKlpPwm(int i, float topen, float tclose)
 * @период в сек
 * @процент времени открытия
 */
-void start_valve_PWMpercent(int valve_num, int period_sec, int percent_open){
-	float topened= (period_sec*percent_open+50)/100l;
-	float tclosed= period_sec-topened;
+void start_valve_PWMpercent(int valve_num, float period_sec, float percent_open){
+	float topened= (period_sec*percent_open)/100.0;
+	float tclosed=period_sec-topened;
+	DBGV("id:%d per:%.1f pwm:%.1f open:%.1f close:%.1f",valve_num,period_sec, percent_open,topened,tclosed);
 	if ((topened < 0)||(topened<0)||(period_sec==0)){
-		DBGV("incorrect param,period %d open %05.2f close %05.2f", period_sec, topened, tclosed);
+		DBGV("incorrect param,period %.1f open %.1f close %.1f", period_sec, topened, tclosed);
 		return;
 	}
 	startKlpPwm(valve_num, topened, tclosed);
@@ -1688,10 +1704,9 @@ static int set_ct(int argc, char **argv)
 		return 1;
 	}
 	const char *values = set_args.value->sval[0];
-	testCubeTemp = atof(values);
-	emulate_devices = 1;
-	DBG("New Cube temp: %f\n", testCubeTemp);
-	return 0;
+	float t = atof(values);
+	DBG("New Cube temp: %f\n", t);
+	return emulateT(DS_CUB, t);
 }
 
 const esp_console_cmd_t set_ct_cmd = {
@@ -2042,7 +2057,7 @@ void valveCMDtask(void *arg){
 
 	while (1){
 		if (xQueueReceive(valve_cmd_queue, &qcmd, portMAX_DELAY)!=pdTRUE) // ждем события на открытие/закрытие клапана
-			continue;																									// если таймаут - повторим
+			continue;																							// если таймаут - повторим
 		ch = Klp[qcmd.valve_num].channel;															// ledc-канал  клапана
 		LEDC.channel_group[0].channel[ch].conf0.sig_out_en = 1;
 		DBGV("v:%d(ch:%d) cmd:%d",qcmd.valve_num,ch,qcmd.cmd);
@@ -2050,15 +2065,15 @@ void valveCMDtask(void *arg){
 			case cmd_open:
 				if (! Klp[qcmd.valve_num].is_open) { // если клапан закрыт то открываем
 					// -------логика "тихого" включения
+					xLastWakeTime = xTaskGetTickCount ();// системное время включения, в тиках
 					if (getIntParam(DEFL_PARAMS,"klpSilentNode")) {
 						ledc_set_fade_with_time(LEDC_HIGH_SPEED_MODE, ch, VALVE_DUTY, VALVE_ON_FADE_TIME_MS);
 						ledc_fade_start(LEDC_HIGH_SPEED_MODE, ch, LEDC_FADE_NO_WAIT);
-						vTaskDelay(VALVE_ON_FADE_TIME_MS/portTICK_PERIOD_MS);
+						//vTaskDelay(VALVE_ON_FADE_TIME_MS/portTICK_PERIOD_MS);
 					} else {
 						ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, VALVE_DUTY);
 						ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
 					}
-					xLastWakeTime = xTaskGetTickCount ();// системное время включения, в тиках
 	#ifdef DEBUGV
 					DBGV(" ON:%d(%d ms)",qcmd.valve_num, (xLastWakeTime-prevValveSwitch)*portTICK_PERIOD_MS );
 					prevValveSwitch=xLastWakeTime;

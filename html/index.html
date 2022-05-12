@@ -1,5 +1,5 @@
 <!doctype html>
-<!--ver 0.7.4.4-->
+<!--ver 0.7.4.6-->
 <html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -504,8 +504,8 @@ showStick = function(level,text) {
 </tbody>
 </table>
 
-<table>
-<tbody class="temp_sensors"></tbody>
+<table style="margin-top: 10px;">
+<tbody class="temp_sensors" style="background-color: lightgray;"></tbody>
 <tbody>
     <tr class="extColdInfo" style="display: none;"><td>Охлаждение: </td><td class="WaterOn bold"></td></tr>
     <tr class="extColdInfo" style="display: none;"><td>T охлаждения вход: </td><td class="TempWaterIn bold"></td></tr>
@@ -742,8 +742,10 @@ showStick = function(level,text) {
         <tr><td colspan="2" class="ta_l" style="background-color: var(--frame-brd-color);"><h3>Дистилляция</h3></td></tr>
         <tr><td class="ta_r">Мощность в режиме дистилляции: </td>
             <td class="ta_l"><input id="powerDistil" type="text" size="5" maxlength="8"> Вт.</td></tr>
-        <tr><td class="ta_r">Температура [куба] окончания дистилляции: </td>
-            <td class="ta_l"><input id="tempEndDistil" type="text" size="4" maxlength="4" /> C</td></tr>
+        <tr><td class="ta_r">Разгон до Т куба: </td>
+            <td class="ta_l"><input id="tEndDistRazgon" type="text" size="4" maxlength="4" /> C</td></tr>
+        <tr><td class="ta_r">Т [куба] завершения дистилляции: </td>
+            <td class="ta_l"><input id="tEndDistil" type="text" size="4" maxlength="4"  /> C</td></tr>
 
         <tr><td colspan="2" class="ta_l" style="background-color: var(--frame-brd-color);"><h3>Регулятор мощности</h3></td></tr>
         <tr><td class="ta_r">Мощность в режиме регулятора мощности: </td>
@@ -868,7 +870,7 @@ showStick = function(level,text) {
 
 <div class="pages" id="dir_list" style="display: none;">
 <h2>Список файлов</h2>
-<table class="param" style="width: 80%;">
+<table class="param">
 <thead>
 <tr><th>Имя</th>
 <th>Размер</th>
@@ -1215,7 +1217,8 @@ set_parameters = function() {
 	'incrementCHIM': $("#incrementCHIM").val(),
 	'timeAutoIncCHIM': $("#timeAutoIncCHIM").val(),
         'powerDistil': $("#powerDistil").val(),
-        'tempEndDistil': $("#tempEndDistil").val(),
+        'tEndDistRazgon': $("#tEndDistRazgon").val(),
+        'tEndDistil': $("#tEndDistil").val(),
 	'alarmMPX5010': $("#alarmMPX5010").val(),
 	'beepChangeState': beepChangeState,
 	'klp1_isPWM': klp1_isPWM,
@@ -1260,8 +1263,9 @@ disp_setting = function() {
 	$("#decrementCHIM").val(d.decrementCHIM);
 	$("#incrementCHIM").val(d.incrementCHIM);
 	$("#timeAutoIncCHIM").val(d.timeAutoIncCHIM);
-	$("#powerDistil").val(d.powerDistil);
-	$("#tempEndDistil").val(d.tempEndDistil);
+        $("#powerDistil").val(d.powerDistil);
+        $("#tEndDistil").val(d.tEndDistil);
+        $("#tEndDistRazgon").val(d.tEndDistRazgon);
 	$("#alarmMPX5010").val(d.alarmMPX5010);
 	if (eval(d.beepChangeState)) $('#beepChangeState').prop('checked', 1);
         else $('#beepChangeState').removeAttr('checked');
@@ -1632,9 +1636,10 @@ const getFrequency = (note = 1) => {
     }
 }
 
-const sleep = (duration = 250) => new Promise((resolve) => {
-    setTimeout(resolve, duration);
-});
+const sleep = (duration = 250) => new Promise((resolve) => {setTimeout(resolve, duration);}
+);
+
+let context = null;
 
 const beep = (freq = 520, duration = 200, vol = 100) => {
     const oscillator = context.createOscillator();
@@ -1648,21 +1653,17 @@ const beep = (freq = 520, duration = 200, vol = 100) => {
     oscillator.stop(context.currentTime + duration * 0.001);
 }
 
-let context = null;
 
-beep_notes = function(Notes){
-        Array.prototype.forEachAsync = async function (fn) {
-            for (let t of this) { await fn(t) }
-        }
-        context = new AudioContext();
-        Notes.forEachAsync(async (note) => {
-            await sleep();
-            beep(getFrequency(note));
-        });
+async function beep_notes(array) {
+  context = new AudioContext();
+  for (const note of array) {
+      await sleep();
+      beep(getFrequency(note));
+  }
 }
 
-alarm_beep = function(){
-    const alarmNotes = [4,9];
+const alarm_beep = ()=>{
+    const alarmNotes = [4,9];    
     beep_notes(alarmNotes);
 }
 </script>
