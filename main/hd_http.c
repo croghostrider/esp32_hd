@@ -52,6 +52,7 @@ License (MIT license):
 #include "hd_main.h"
 #include "ds.h"
 #include "debug.h"
+#include "sms.h"
 
 #define HTTP_SEND(A,B,C)  do { if (!httpdSend(A,B,C)) ESP_LOGE(__func__,"out of memory in httpdSend()");} while(0)
 
@@ -444,6 +445,11 @@ int httpNetSetup(HttpdConnData *connData)
 		cJSON_AddItemToObject(ja, "smscHash", cJSON_CreateString(getStringParam(NET_PARAMS, "smscHash")));
 		cJSON_AddItemToObject(ja, "smscPhones", cJSON_CreateString(getStringParam(NET_PARAMS, "smscPhones")));
 		cJSON_AddItemToObject(ja, "useSmsc", cJSON_CreateNumber(getIntParam(NET_PARAMS, "useSmsc")));
+
+		cJSON_AddItemToObject(ja, "useTlg", cJSON_CreateNumber(getIntParam(NET_PARAMS, "useTlg")));
+		cJSON_AddItemToObject(ja, "chatidTlg", cJSON_CreateString(getStringParam(NET_PARAMS, "chatidTlg")));
+		cJSON_AddItemToObject(ja, "tokenTlg", cJSON_CreateString(getStringParam(NET_PARAMS, "tokenTlg")));
+
 		cJSON_AddItemToObject(ja, "wsPeriod", cJSON_CreateNumber(wsPeriod));
 		cJSON_AddItemToObject(ja, "timezone", cJSON_CreateNumber(getIntParam(NET_PARAMS, "timezone")));
 		cJSON_AddItemToObject(ja, "z_shift", cJSON_CreateNumber(getIntParam(NET_PARAMS, "z_shift")));
@@ -452,15 +458,19 @@ int httpNetSetup(HttpdConnData *connData)
 		httpdSend(connData, r, strlen(r));
 		if (r) free(r);
 		cJSON_Delete(ja);
-        } else if (connData->requestType == HTTPD_METHOD_POST) {
+        }
+	else if (connData->requestType == HTTPD_METHOD_POST) {
 		char *var, *val;
 		char param[82];
 		while ((val = strsep(&connData->post->buff, "&"))) {
-	                var = strsep(&val, "=");
+			var = strsep(&val, "=");
 			if (!checkParam(NET_PARAMS, var)) continue;
-	                if (val) httpdUrlDecode(val, strlen(val), param, sizeof(param));
-			else  val = "";
-			setParam(NET_PARAMS, var, val);
+			DBG("var:%s val:%s",var, val);
+	        if (val)
+	        	httpdUrlDecode(val, strlen(val), param, sizeof(param));
+			else
+				val = "";
+			setParam(NET_PARAMS, var, param);
 		}
 		param_save(NET_PARAMS, NET_CONFIGURATION);
 		Hostname = getStringParam(NET_PARAMS, "host");
@@ -513,6 +523,27 @@ int httpParamSetup(HttpdConnData *connData)
 	}
 	return HTTPD_CGI_DONE;
 }
+
+int httpTLGtest(HttpdConnData *connData)
+{
+	if (connData->conn==NULL) return HTTPD_CGI_DONE;
+	if (checkAuth(connData)) return HTTPD_CGI_DONE;
+	send_json_headers(connData);
+
+	if (connData->requestType == HTTPD_METHOD_POST) {
+		char token[50];
+		char chatid[20];
+		httpdFindArg(connData->post->buff, "token", token, sizeof(token));
+		httpdFindArg(connData->post->buff, "chatid", chatid, sizeof(chatid));
+		esp_err_t err = send_message2bot((const char *)token,(const char *)chatid,"test message");
+		if (err==ESP_OK)	json_ok(connData);
+		else	json_err(connData);
+	} else {
+		json_err(connData);
+	}
+	return HTTPD_CGI_DONE;
+}
+
 
 int httpSetPower(HttpdConnData *connData)
 {
@@ -1771,6 +1802,7 @@ HttpdBuiltInUrl builtInUrls[]={
 	{"/dl", cgiDownload, NULL},
 	{"/dl_status", cgiDownloadStatus, NULL},
 	{"/netcfg", httpNetSetup, NULL},
+	{"/tlgtest", httpTLGtest, NULL},
 
 	{"/defparam", httpParamDefault, NULL},
 	{"/saveparam", httpParamSetup, NULL},

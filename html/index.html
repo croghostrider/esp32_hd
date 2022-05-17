@@ -1,5 +1,5 @@
 <!doctype html>
-<!--ver 0.7.4.6-->
+<!--ver 0.7.4.7-->
 <html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -642,6 +642,7 @@ showStick = function(level,text) {
 <tr><td class="ta_r">Повтор нового пароля:</td>
 <td class="ta_l"><input id="newpasswd2" type="password" size="20" maxlength="16"></td></tr>
 <tr><td class="ta_c" style="display: none; color: red;" colspan="2" id="passmatch">Пароли не совпадают!!</td></tr>
+
 <tr><td class="ta_r">Использовать сервис smsc.ru:</td>
 <td class="ta_l"> <input type="checkbox" id="useSmsc" value="1"></td></tr>
 <tr><td class="ta_r">Имя пользователя smsc:</td>
@@ -650,6 +651,14 @@ showStick = function(level,text) {
 <td class="ta_l"> <input id="smscHash" type="text" size="80" maxlength="80"></td></tr>
 <tr><td class="ta_r">Телефоны для отправки sms:</td>
 <td class="ta_l"> <input id="smscPhones" type="text" size="80" maxlength="80"></td></tr>
+
+<tr><td class="ta_r">Использовать бот Telegram:</td>
+<td class="ta_l"> <input type="checkbox" id="useTlg" value="1"></td></tr>
+<tr><td class="ta_r">Токен бота:</td>
+<td class="ta_l"> <input id="tokenTlg" type="text" size="60" maxlength="60"> <input type="button" id="tlg_test" onclick="telegramTest();" value="Тест" /> </td></tr>
+<tr><td class="ta_r">ID чата:</td>
+<td class="ta_l"> <input id="chatidTlg" type="text" size="30" maxlength="30"></td></tr>
+
 <tr><td class="ta_r" style="border-top: 2px solid;">Период обновления для websocket:</td>
 <td class="ta_l" style="border-top: 2px solid;"> <input id="wsPeriod" type="text" size="3" maxlength="4"> Сек.</td></tr>
 <tr><td class="ta_r">Time zone (GMT 0-12):</td>
@@ -1124,6 +1133,7 @@ save_network = function () {
   var secure=0, useSmsc=0;
   if($('#secure').is(':checked')) secure=1;
   if($('#useSmsc').is(':checked')) useSmsc=1;
+  if($('#useTlg').is(':checked')) useTlg=1;
   $.post('/netcfg', {
 	'host': $('#host').val(),
 	'user': $('#newusername').val(),
@@ -1133,6 +1143,11 @@ save_network = function () {
 	'smscHash': $('#smscHash').val(),
 	'smscPhones': $('#smscPhones').val(),
 	'useSmsc':useSmsc,
+    
+	'tokenTlg': $('#tokenTlg').val(),
+	'chatidTlg': $('#chatidTlg').val(),
+	'useTlg':useTlg,
+    
 	'wsPeriod': $('#wsPeriod').val(),
 	'timezone': $('#timezone').val(),
 	'z_shift': $('#z_shift').val()
@@ -1158,6 +1173,12 @@ disp_network = function () {
 	$('#smscPhones').val(d.smscPhones);
 	if (eval(d.useSmsc)) $('#useSmsc').prop('checked', 1);
 	else $('#useSmsc').removeAttr('checked');
+
+	$('#tokenTlg').val(d.tokenTlg);
+	$('#chatidTlg').val(d.chatidTlg);
+	if (eval(d.useTlg)) $('#useTlg').prop('checked', 1);
+	else $('#useTlg').removeAttr('checked');
+    
 	$('#wsPeriod').val(d.wsPeriod);
 	$('#timezone').val(d.timezone);
 	$('#z_shift').val(d.z_shift);
@@ -1605,6 +1626,22 @@ function timerWSupdate() {
   else {
     ws_status("OK","green");
   }
+}
+
+telegramTest = function (){
+    let token =  $("#tokenTlg").val();
+	let chatid = $('#chatidTlg').val();
+    if (token !=""){
+        $.post('/tlgtest', {
+                'token': token,
+                'chatid': chatid
+           }, function(d) {
+            showStick(d.err, d.msg);
+          }, 'json');
+     }
+     else {
+        alert("укажите токен");
+     }
 }
 
 const getFrequency = (note = 1) => {
