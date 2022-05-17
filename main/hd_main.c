@@ -61,6 +61,7 @@ License (MIT license):
 #include "hd_spi_i2c.h"
 #include "hd_wifi.h"
 #include "hd_main.h"
+#include "sms.h"
 #include "cgiupdate.h"
 #include "cgiwebsocket.h"
 #include "esp_request.h"
@@ -827,41 +828,6 @@ cJSON* getInformation(void)
 	return ja;
 }
 
-// Отправка SMS
-void sendSMS(char *text)
-{
-	request_t *req;
-	int ret;
-	char *post, *user, *hash, *phones;
-	int s;
-	if (!getIntParam(NET_PARAMS, "useSmsc")) return;
-
-	user = getStringParam(NET_PARAMS, "smscUser");
-	hash = getStringParam(NET_PARAMS, "smscHash");
-	phones = getStringParam(NET_PARAMS, "smscPhones");
-
-
-	if (!user || !hash || !phones) return;
-	if (strlen(user)<=0 || strlen(hash)<=30 || strlen(phones)<=0) return;
-	s = strlen(user) + strlen(hash) + strlen(phones) + strlen(text);
-	post = malloc(s+30);
-	if (!post) return;
-	sprintf(post, "login=%s&psw=%s&phones=%s&mes=%s", user, hash, phones, text);
-
-	DBG(">> SMS start");
-	req = req_new("https://smsc.ru/sys/send.php"); 
-	req_setopt(req, REQ_SET_METHOD, "POST");
-	req_setopt(req, REQ_SET_POSTFIELDS, post);
-	ret = req_perform(req);
-	if (ret/100 > 2) {
-		DBG("sms failed, error code: %d", ret);
-	}
-	req_clean(req);
-	free(post);
-	DBG("<< Sms Done");
-}
-
-
 // Установка рабочей мощности
 void setPower(int16_t pw)
 {
@@ -886,7 +852,7 @@ void setPower(int16_t pw)
 
 void setNewProcChimSR(int16_t newValue)
 {
-	LOG("PWM %d->%d",ProcChimSR,newValue);
+	LOG("ШИМ %d->%d",ProcChimSR,newValue);
 	if (ProcChimSR != newValue) {
 		ProcChimSR = newValue;
 		if (nvsHandle) {
@@ -964,25 +930,25 @@ void setMainMode(int nm)
 	switch (MainMode) {
 	case MODE_IDLE:
 		// Режим мониторинга
-		LOG("Main mode: Idle.");
+		LOG("mode: Idle.");
 		break;
 	case MODE_POWEERREG:
 		// Режим регулятора мощности
-		LOG("Main mode: Power reg.");
+		LOG("Power reg.");
 		if (MainStatus !=PROC_START)	setPower(getIntParam(DEFL_PARAMS, "ustPowerReg"));
 		set_status(PROC_START);
 		break;
 	case MODE_DISTIL:
 		// Режим дистилляции
-		LOG("Main mode: Distillation.");
+		LOG("Distillation.");
 		break;
 	case MODE_RECTIFICATION:
 		// Режим ректификации
-		LOG("Main mode: Rectification.");
+		LOG("Rectification.");
 		break;
 	case MODE_TESTKLP:
 		// Режим тестирования клапанов
-		LOG("Main mode: Test klp.");
+		LOG("Test klp.");
 		break;
 	}
 	myBeep(false);
@@ -1141,6 +1107,8 @@ void Rectification(void)
 			startPressure = bmpTruePressure; // Фиксация атм. давления.
 			closeAllKlp();		// Закрытие всех клапанов.
 			LOG("RAZGON");
+			sprintf(b, "%02d:%02d:%02d разгон до %.1f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, tempEndRectRazgon);
+			send_message(b);
 		}
 		// контроль
 
@@ -1167,6 +1135,8 @@ void Rectification(void)
 			setTempTube20Prev(t);
 			secTempPrev = uptime_counter;
 			prev_status=MainStatus;
+			sprintf(b, "%02d:%02d:%02d стабилизация до %.1f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, getFloatParam(DEFL_PARAMS, "timeStabKolonna"));
+			send_message(b);
 		}
 
 		// контроль
@@ -1216,6 +1186,8 @@ void Rectification(void)
 			secTempPrev = uptime_counter;
 			setTempStabSR(getTube20Temp());	// температура стабилизации отбора
 			set_proc_power("powerRect");
+			sprintf(b, "%02d:%02d:%02d головы до %.2f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, getFloatParam(DEFL_PARAMS, "tEndRectOtbGlv"));
+			send_message(b);
 			start_valve_PWMpercent(
 					klp_glwhq, // медленный ШИМ клапан голов
 					getFloatParam(DEFL_PARAMS, "timeChimRectOtbGlv"),
@@ -1253,6 +1225,8 @@ void Rectification(void)
 			openKlp(klp_water);		// Открытие клапана воды
 			if ((prev_status == PROC_SR)){ //попали сюда по "стоп" отбора продукта
 				rect_timer1 = getIntParam(DEFL_PARAMS, "timeRestabKolonna");
+				sprintf(b, "%02d:%02d:%02d рестабилизация", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
+				send_message(b);
 			}
 			else {//попали сюда или с отбора голов или после [ре]старта контроллера
 				if (!broken_proc){
@@ -1312,7 +1286,8 @@ void Rectification(void)
 				period,// период ШИМ в сек
 				ProcChimSR //%
 			  );
-
+			sprintf(b, "%02d:%02d:%02d тело, PWM:%d", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, ProcChimSR);
+			send_message(b);
 			if (tempStabSR <= 0) setTempStabSR(28.5);
 			prev_status=MainStatus;
 			LOG("PROC_SR  Tstab:%5.1f PWM:%d%%(%d sec)",tempStabSR,ProcChimSR,period);
@@ -1388,6 +1363,8 @@ void Rectification(void)
 						getFloatParam(DEFL_PARAMS, "timeChimRectOtbSR"),// период ШИМ в сек
 						ProcChimSR //%
 					  );
+					sprintf(b, "%02d:%02d:%02d тело:увеличение PWM:%d", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, ProcChimSR);
+					send_message(b);
 				}
 				secTempPrev = uptime_counter;
 			} //auto-increment block
@@ -1416,6 +1393,8 @@ void Rectification(void)
 						getFloatParam(DEFL_PARAMS, "timeChimRectOtbGlv"),
 						100);
 			prev_status=MainStatus;
+			sprintf(b, "%02d:%02d:%02d хвосты до:%.1f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, getFloatParam(DEFL_PARAMS, "tempEndRect"));
+			send_message(b);
 		}
 
 		//-- контроль
@@ -1441,6 +1420,10 @@ void Rectification(void)
 			if (prev_status!=PROC_HV) { // если попали сюда не штатно, после отбора хвоста, а после рестарта то
 				openKlp(klp_water);		// Открытие клапана воды
 				closeKlp(klp_sr); 			// Отключение клапана продукта
+			}
+			else {
+				sprintf(b, "%02d:%02d:%02d охлаждение", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
+				send_message(b);
 			}
 			tempTube20Prev = getTube20Temp(); // фиксируем текущую T низа колонны
 			secTempPrev = uptime_counter; // и текущее время
@@ -1471,13 +1454,14 @@ void Rectification(void)
 		// старт
 		if (prev_status!=MainStatus){
 			LOG("END");
-			prev_status=MainStatus;
 			setPower(0);		// Снятие мощности с тэна
 			closeAllKlp();		// Закрытие всех клапанов.
 			SecondsEnd = uptime_counter;
-			sprintf(b, "Rectification complete, time: %02d:%02d:%02d", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
-			sendSMS(b);
-			DBG("SMS:'%s'", b);
+			if (prev_status ==PROC_WAITEND){
+				sprintf(b, "%02d:%02d:%02d ректификация завершена", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
+				send_message(b);
+			}
+			prev_status=MainStatus;
 			if (getIntParam(DEFL_PARAMS, "DIFFoffOnStop")) {
 				xTaskCreate(&diffOffTask, "diff Off task", 4096, NULL, 1, NULL); // выключаем дифф
 			}
@@ -1489,7 +1473,6 @@ void Rectification(void)
 		break;		// Окончание работы
 	}
 }
-
 
 // Обработка состояний в режиме дистилляции
 void Distillation(void)
@@ -1519,6 +1502,8 @@ void Distillation(void)
 			prev_status=MainStatus;
 			closeAllKlp();
 			set_proc_power("maxPower");
+			sprintf(b, "%02d:%02d:%02d Distillation: разгон до %.2f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60,getFloatParam(DEFL_PARAMS, "tEndDistRazgon"));
+			send_message(b);
 		}
 
 		t = getCubeTemp();
@@ -1543,6 +1528,8 @@ void Distillation(void)
 			if (t_end < 0){ // настроен отбор по времени
 				secTempPrev = uptime_counter + (-(uint32_t)t_end*60); // фиксируем время завершения отбора
 			}
+			sprintf(b, "%02d:%02d:%02d Distillation: тело до %.2f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60,t_end);
+			send_message(b);
 		}
 
 		if (t_end<0) {
@@ -1576,6 +1563,8 @@ void Distillation(void)
 			else {
 				LOG("PROC_COOLDOWN (for 180 sec)");
 			}
+			sprintf(b, "%02d:%02d:%02d Distillation: охлаждение", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
+			send_message(b);
 		}
 
 		//  контроль завершения
@@ -1588,6 +1577,8 @@ void Distillation(void)
 		}
 		//  завершение
 		set_status(PROC_END);
+		sprintf(b, "%02d:%02d:%02d Distillation complete", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
+		send_message(b);
 		if (getIntParam(DEFL_PARAMS, "beepChangeState")) myBeep(true); // @suppress("No break at end of case")
 		//break;
 
@@ -1598,8 +1589,6 @@ void Distillation(void)
 			prev_status=MainStatus;
 			setPower(0);		// Снятие мощности с тэна
 			closeAllKlp();		// Закрытие всех клапанов.
-			sprintf(b, "Distillation complete, time: %02d:%02d:%02d", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
-			sendSMS(b);
 			if (getIntParam(DEFL_PARAMS, "DIFFoffOnStop")) {
 				xTaskCreate(&diffOffTask, "diff Off task", 4096, NULL, 1, NULL); // выключаем дифф
 			}
@@ -1717,6 +1706,22 @@ const esp_console_cmd_t set_ct_cmd = {
         .argtable = &set_args
 };
 
+// https test
+static int httpstest(int argc, char **argv)
+{
+	return send2Telegram("test message\nтестовое сообщение");
+}
+static void register_httpstest()
+{
+    const esp_console_cmd_t cmd = {
+        .command = "s",
+        .help = "send POST https",
+        .hint = NULL,
+        .func = &httpstest,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 /* 'version' command */
 static int get_version(int argc, char **argv)
 {
@@ -1809,6 +1814,7 @@ void console_task(void *arg)
 	ESP_ERROR_CHECK( esp_console_cmd_register(&set_ct_cmd) );
 	register_version();
 	register_restart();
+	register_httpstest();
 
 	while (true) {
 		char* line;

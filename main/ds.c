@@ -36,6 +36,8 @@ License (MIT license):
 #include "hd_spi_i2c.h"
 #include "ds.h"
 #include "debug.h"
+#include "sms.h"
+
 
 #ifndef max
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -1235,11 +1237,14 @@ void ds_task(void *arg)
 
 		if (alarmT) {
 			SET_ALARM(ALARM_TEMP);
-			if (! (SavedAlarmMode&ALARM_TEMP)) {
-				sendSMS("Temperature alarm! power switched off!");
+			if (! (SavedAlarmMode & ALARM_TEMP)) {
+				send_message("Temperature alarm! power switched off!");
 			}
 		} else {
 			CLEAR_ALARM(ALARM_TEMP);
+			if (SavedAlarmMode & ALARM_TEMP) {
+				send_message("End of alarm, power switched on");
+			}
 		}
 		SavedAlarmMode = AlarmMode;
 		xSemaphoreGive(ow_mux);
