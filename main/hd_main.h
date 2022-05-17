@@ -20,6 +20,9 @@ License (MIT license):
   THE SOFTWARE.
 */
 
+#include <cJSON.h>
+#include "esp_log.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -101,7 +104,7 @@ extern float TempWaterOut;	// Температура воды на выходе 
 extern int16_t WaterFlow;	// Значения датчика потока воды.
 extern int16_t fAlarmSoundOff; //флаг выключения звука аварии
 
-//#define NO_BEEP
+#define NO_BEEP
 
 #ifndef NO_BEEP
 #define GPIO_ON(A)		do {GPIO.out_w1ts = (1 << (A));} while(0)
@@ -194,7 +197,6 @@ cJSON* getInformation(void);
 
 void write2log(const char* s);
 
-void sendSMS(char *text);	// Отправка SMS
 void Rectification(void);	// Обработка состояний в режиме ректификации
 void setPower(int16_t pw);	// Установка рабочей мощности
 void setMainMode(int new_mode);	// Установка нового режима работы

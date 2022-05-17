@@ -12,6 +12,8 @@
 #ifndef MAIN_DEBUG_H_
 #define MAIN_DEBUG_H_
 
+#include "esp_log.h"
+
 
 //#define DEBUG
 //#define DEBUG1  // детальная отладка
@@ -37,5 +39,7 @@
 #define DBG1( format, ... )
 #endif
 
+#define START_DEBUG()  esp_log_level_set("dbg.h", ESP_LOG_DEBUG)
+#define STOP_DEBUG()  esp_log_level_set("dbg.h", ESP_LOG_ERROR)
 
 #endif /* MAIN_DEBUG_H_ */
