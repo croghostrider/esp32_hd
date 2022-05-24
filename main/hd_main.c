@@ -107,6 +107,13 @@ main_mode MainMode = MODE_IDLE;	// Текущий режим работы
 int16_t MainStatus=START_WAIT;		// Текущее состояние (в зависимости от режима)
 bool broken_proc = false;					// признак старта после прерванного процесса
 
+
+#define WAIT_STR_LEN	128
+// информация о критерии завершения этапа
+char wait_str[WAIT_STR_LEN];
+DsType wait_sensor = 0;
+double wait_T;
+
 alarm_mode AlarmMode = NO_ALARM;	// Состояние аварии
 int16_t CurPower;			// Текущая измерянная мощность
 int16_t SetPower;			// Установленная мощность
@@ -162,6 +169,11 @@ nvs_handle nvsHandle;
 
 static volatile int beeperTime=0;
 static volatile bool beepActive = false;
+
+void 		setWaitSensor(DsType sensor, double temperature);
+void 		setWaitTime(const char* s, uint32_t time);
+DsType getWaitSensor(void);
+double getWaitT(void);
 
 // Включаем бипер
 void IRAM_ATTR myBeep(bool lng)
@@ -477,12 +489,13 @@ const char *getMainStatusStr(void)
 
 const char *getAlarmModeStr(void)
 {
+
+	if (!AlarmMode) return NULL;
+
 	static char str[256];
 	int cnt;
-
-	if (!AlarmMode) return "<b class=\"green\">Не зафиксированo</b>";
-	strcpy(str, "<b class=\"red\">");
-
+	str[0]=0;
+	//strcpy(str, "<b class=\"red\">");
 	if (EXISTS_ALARM(ALARM_TEMP)) {
 		cnt = sizeof(str) - strlen(str);
 		strncat(str, "Превышение температуры", cnt);
@@ -515,7 +528,7 @@ const char *getAlarmModeStr(void)
 		cnt = sizeof(str) - strlen(str);
 		strncat(str,"  нет датчика температуры!", cnt);
 	}
-	strcat(str,"</b>");
+	//strcat(str,"</b>");
 	return str;
 }
 
@@ -730,6 +743,22 @@ int paramSetup(void)
 	return ESP_OK;
 }
 
+cJSON* getModeInfo(cJSON *j)
+{
+	cJSON *ja = j;
+	if (! ja){
+		ja = cJSON_CreateObject();
+		cJSON_AddItemToObject(ja, "cmd", cJSON_CreateString("modeinfo"));
+	}
+	cJSON_AddItemToObject(ja, "MainMode", cJSON_CreateNumber(MainMode));
+	cJSON_AddItemToObject(ja, "MainModeStr", cJSON_CreateString(getMainModeStr()));
+	cJSON_AddItemToObject(ja, "MainStatus", cJSON_CreateNumber(MainStatus));
+	cJSON_AddItemToObject(ja, "MainStatusStr", cJSON_CreateString(getMainStatusStr()));
+	cJSON_AddItemToObject(ja, "waitStr", cJSON_CreateString(getWaitStr()));
+	return ja;
+}
+
+
 cJSON* getInformation(void)
 {
 	char data[80];
@@ -745,17 +774,18 @@ cJSON* getInformation(void)
 	snprintf(data, sizeof(data)-1, "%02d:%02d", CurrentTm.tm_hour, CurrentTm.tm_min);
 	cJSON_AddItemToObject(ja, "time", cJSON_CreateString(data));
 	snprintf(data, sizeof(data)-1, "%02d:%02d:%02d", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
-	cJSON_AddItemToObject(ja, "MainMode", cJSON_CreateNumber(MainMode));
-	cJSON_AddItemToObject(ja, "MainModeStr", cJSON_CreateString(getMainModeStr()));
-	cJSON_AddItemToObject(ja, "MainStatus", cJSON_CreateNumber(MainStatus));
-	cJSON_AddItemToObject(ja, "MainStatusStr", cJSON_CreateString(getMainStatusStr()));
+
+	getModeInfo(ja);
+
 	cJSON_AddItemToObject(ja, "uptime", cJSON_CreateString(data));
 	cJSON_AddItemToObject(ja, "CurVolts", cJSON_CreateNumber(CurVolts));
 	cJSON_AddItemToObject(ja, "CurPower", cJSON_CreateNumber(CurPower));
 	cJSON_AddItemToObject(ja, "SetPower", cJSON_CreateNumber(SetPower));
 	cJSON_AddItemToObject(ja, "CurFreq", cJSON_CreateNumber(CurFreq/2));
 	cJSON_AddItemToObject(ja, "Alarm", cJSON_CreateNumber(AlarmMode));
-	cJSON_AddItemToObject(ja, "AlarmMode", cJSON_CreateString(getAlarmModeStr()));
+	if (getAlarmModeStr())
+		cJSON_AddItemToObject(ja, "AlarmMode", cJSON_CreateString(getAlarmModeStr()));
+
 	if (WaterOn<0) wo = "No data";
 	else if (0 == WaterOn) wo = "Off";
 	else wo = "On";
@@ -1075,7 +1105,6 @@ esp_err_t sensor_err(double t){
 void Rectification(void)
 {
 	double t;
-	float tempEndRectRazgon;
 	char b[80];
 	static int16_t prev_status=START_WAIT;
 
@@ -1085,6 +1114,7 @@ void Rectification(void)
 			prev_status=MainStatus;
 			setPower(0);		// Снятие мощности с тэна
 			closeAllKlp();		// Закрытие всех клапанов.
+			setWaitStr("запуска");
 		}
 		break;
 	case PROC_START:
@@ -1096,9 +1126,14 @@ void Rectification(void)
 
 	case PROC_RAZGON: 		// Разгон до рабочей температуры
 
-		tempEndRectRazgon = getFloatParam(DEFL_PARAMS, "tempEndRectRazgon");
-		if (tempEndRectRazgon > 0) t = getCubeTemp();
-		else t = getTube20Temp();
+		;float tempEndRectRazgon = getFloatParam(DEFL_PARAMS, "tempEndRectRazgon");
+		if ( tempEndRectRazgon > 0)	// Т завершения разгона  по Ткуба (параметр>0) или по Т20%(параметр отрицательный)
+		{
+			t = getCubeTemp();
+		}
+		else{
+			t = getTube20Temp();
+		}
 
 		// старт
 		if (prev_status!=MainStatus){
@@ -1109,6 +1144,13 @@ void Rectification(void)
 			LOG("RAZGON");
 			sprintf(b, "%02d:%02d:%02d разгон до %.1f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, tempEndRectRazgon);
 			send_message(b);
+			if ( tempEndRectRazgon > 0)	// Т завершения разгона  по Ткуба (параметр>0) или по Т20%(параметр отрицательный)
+			{
+				setWaitSensor(DS_CUB, tempEndRectRazgon);
+			}
+			else{
+				setWaitSensor(DS_TUBE20, -tempEndRectRazgon);
+			}
 		}
 		// контроль
 
@@ -1137,6 +1179,7 @@ void Rectification(void)
 			prev_status=MainStatus;
 			sprintf(b, "%02d:%02d:%02d стабилизация до %.1f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, getFloatParam(DEFL_PARAMS, "timeStabKolonna"));
 			send_message(b);
+			setWaitSensor(DS_TUBE20, 70.0);
 		}
 
 		// контроль
@@ -1147,12 +1190,14 @@ void Rectification(void)
 			break;
 		}
 
-		float timeStabKolonna = getFloatParam(DEFL_PARAMS, "timeStabKolonna");
+		int timeStabKolonna = getIntParam(DEFL_PARAMS, "timeStabKolonna");
 
 		if (timeStabKolonna > 0) {			// Время считаем относительно последнего изменения температуры
 			if (fabs(t - tempTube20Prev) < 0.2) {	// температура колонны в пределах погрешности в 0.2 градуса C
 				DBG( "Stabillization %d of %02.0f sec.", uptime_counter-secTempPrev, fabs(timeStabKolonna));
-				if (uptime_counter-secTempPrev<timeStabKolonna) {// время стабилизации истекло?
+				int rest = (timeStabKolonna)-(int)(uptime_counter-secTempPrev);
+				if (rest>0) {// время стабилизации не истекло
+					setWaitTime("относит.стабилизацию, осталось %02d:%02d:%02d", rest);
 					break; // нет, продолжаем стабилизацию
 				}
 				// время стабилизации истекло, заканчиваем
@@ -1165,7 +1210,9 @@ void Rectification(void)
 			}
 		} else {	// время считаем от начала стабилизации
 			DBG("Stabillization %d of %0.0f.", uptime_counter-secTempPrev, fabs(timeStabKolonna));
-			if (uptime_counter-secTempPrev < fabs(timeStabKolonna)) {		// время истекло?
+			int rest = (-timeStabKolonna)-(int)(uptime_counter-secTempPrev);
+			if (rest>0) {		// время истекло?
+				setWaitTime("абс.стабилизацию, осталось %02d:%02d:%02d", rest);
 				break; // нет - продолжаем стабилизацию
 			}
 			// время стабилизации истекло, заканчиваем
@@ -1177,6 +1224,8 @@ void Rectification(void)
 		 /* fall through */
 
 	case PROC_GLV:			// Отбор головных фракций
+		;
+		float tEndRectOtbGlv =getFloatParam(DEFL_PARAMS, "tEndRectOtbGlv");
 		// старт
 		if (prev_status!=MainStatus){
 			LOG("PROC_GLV");
@@ -1192,10 +1241,16 @@ void Rectification(void)
 					klp_glwhq, // медленный ШИМ клапан голов
 					getFloatParam(DEFL_PARAMS, "timeChimRectOtbGlv"),
 					getFloatParam(DEFL_PARAMS, "procChimOtbGlv"));
+
+			if (tEndRectOtbGlv>0){ 						// tEndRectOtbGlv положительный -> это температура куба завершения отбора голов
+				setWaitSensor(DS_CUB, tEndRectOtbGlv);
+			}
+			else {												// tEndRectOtbGlv отрицательное -> это кол-во минут отбора голов
+				setWaitTime("осталось %02d:%02d:%02d",(uint32_t)(-tEndRectOtbGlv*60));
+			}
 		}
 
 		// контроль
-		float tEndRectOtbGlv =getFloatParam(DEFL_PARAMS, "tEndRectOtbGlv");
 
 		if (tEndRectOtbGlv>0){ 						// tEndRectOtbGlv положительный -> это температура куба завершения отбора голов
 			t = getCubeTemp();
@@ -1206,7 +1261,10 @@ void Rectification(void)
 		}
 		else {												// tEndRectOtbGlv отрицательное -> это кол-во минут отбора голов
 			if ((uptime_counter-secTempPrev) < (-tEndRectOtbGlv*60) )	// время не истекло
+			{
+				setWaitTime("осталось %02d:%02d:%02d",(uint32_t)(-tEndRectOtbGlv)*60 - (uptime_counter-secTempPrev) );
 				break;												// продолжаем
+			}
 		}
 
 		// Окончание отбора голов
@@ -1237,6 +1295,7 @@ void Rectification(void)
 				set_proc_power("powerRect");  //задаем мощность ректификации
 			}
 			prev_status=MainStatus;
+			setWaitTime("рестабилизация на %02d:%02d:%02d", getIntParam(DEFL_PARAMS, "timeRestabKolonna"));
 		}
 		if (sensor_err(t)) break; // сбой датчика, ждем
 		if (tempStabSR <= 0) setTempStabSR(28.5);
@@ -1259,6 +1318,7 @@ void Rectification(void)
 		
 		//  проверим: Т низа колонные снизилась до Тстаб?
 		if (getTube20Temp() > tempStabSR) {
+			setWaitTime("осталось %02d:%02d:%02d",rect_timer1);
 			break; //если нет, остаемся в рестабилизации
 		}
 		//рестабилизация завершена
@@ -1291,6 +1351,13 @@ void Rectification(void)
 			if (tempStabSR <= 0) setTempStabSR(28.5);
 			prev_status=MainStatus;
 			LOG("PROC_SR  Tstab:%5.1f PWM:%d%%(%d sec)",tempStabSR,ProcChimSR,period);
+
+			float tempEndRectOtbSR = getFloatParam(DEFL_PARAMS, "tempEndRectOtbSR");
+			if (tempEndRectOtbSR>0)					// контроль по Т куба
+				setWaitSensor(DS_CUB, tempEndRectOtbSR);
+			else							// контроль по Т20
+				setWaitSensor(DS_TUBE20, tempEndRectOtbSR);
+
 		}
 
 		//-----------контроль
@@ -1395,6 +1462,7 @@ void Rectification(void)
 			prev_status=MainStatus;
 			sprintf(b, "%02d:%02d:%02d хвосты до:%.1f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60, getFloatParam(DEFL_PARAMS, "tempEndRect"));
 			send_message(b);
+			setWaitSensor(DS_CUB, getFloatParam(DEFL_PARAMS, "tempEndRect"));
 		}
 
 		//-- контроль
@@ -1430,9 +1498,11 @@ void Rectification(void)
 			prev_status=MainStatus;
 			if (tempTube20Prev>0){
 				LOG("PROC_COOLDOWN (till Ttube20:%5.1f)",tempTube20Prev-END_OF_COOLDOWN_DELTA_T);
+				setWaitStr("снижение Tниза колонны на 6.0 С");
 			}
 			else {
 				LOG("PROC_COOLDOWN (for 180 sec)");
+				setWaitStr("180 сек");
 			}
 		}
 
@@ -1453,6 +1523,7 @@ void Rectification(void)
 	case PROC_END:		// Окончание работы
 		// старт
 		if (prev_status!=MainStatus){
+			setWaitStr("хозяина");
 			LOG("END");
 			setPower(0);		// Снятие мощности с тэна
 			closeAllKlp();		// Закрытие всех клапанов.
@@ -1488,6 +1559,7 @@ void Distillation(void)
 			prev_status=MainStatus;
 			closeAllKlp();
 			if (SetPower) setPower(0);
+			setWaitStr("запуска");
 		}
 		// Ожидание запуска процесса
 		break;
@@ -1504,6 +1576,7 @@ void Distillation(void)
 			set_proc_power("maxPower");
 			sprintf(b, "%02d:%02d:%02d Distillation: разгон до %.2f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60,getFloatParam(DEFL_PARAMS, "tEndDistRazgon"));
 			send_message(b);
+			setWaitSensor(DS_CUB, getFloatParam(DEFL_PARAMS, "tEndDistRazgon"));
 		}
 
 		t = getCubeTemp();
@@ -1527,7 +1600,12 @@ void Distillation(void)
 			prev_status=MainStatus;
 			if (t_end < 0){ // настроен отбор по времени
 				secTempPrev = uptime_counter + (-(uint32_t)t_end*60); // фиксируем время завершения отбора
+				setWaitTime("uptime %02d:%02d:%02d",secTempPrev);
 			}
+			else {
+				setWaitSensor(DS_CUB, t_end);
+			}
+
 			sprintf(b, "%02d:%02d:%02d Distillation: тело до %.2f", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60,t_end);
 			send_message(b);
 		}
@@ -1559,12 +1637,16 @@ void Distillation(void)
 			prev_status=MainStatus;
 			if (controlT>0){
 				LOG("PROC_COOLDOWN (till Tcube:%5.1f)",controlT);
+				sprintf(b, "снижение Т куба до %.1f", controlT);
+				setWaitStr(b);
+				sprintf(b, "охлаждение Т куба до %.1f", controlT);
+				send_message(b);
 			}
 			else {
 				LOG("PROC_COOLDOWN (for 180 sec)");
+				setWaitStr("180 сек");
+				send_message("Distillation: 180 sec охлаждение");
 			}
-			sprintf(b, "%02d:%02d:%02d Distillation: охлаждение", uptime_counter/3600, (uptime_counter/60)%60, uptime_counter%60);
-			send_message(b);
 		}
 
 		//  контроль завершения
@@ -1592,6 +1674,7 @@ void Distillation(void)
 			if (getIntParam(DEFL_PARAMS, "DIFFoffOnStop")) {
 				xTaskCreate(&diffOffTask, "diff Off task", 4096, NULL, 1, NULL); // выключаем дифф
 			}
+			setWaitStr("хозяина");
 		}
 		break;
 	}
@@ -2185,4 +2268,34 @@ void write2log(const char* s){
 	cgiWebsockBroadcast("/ws", r, strlen(r), WEBSOCK_FLAG_NONE);
 	cJSON_Delete(ja);
 	if (r) free(r);
+}
+
+void setWaitStr(const char* s){
+	strcpy(wait_str,s);
+}
+
+const char *getWaitStr(void){
+	return (const char*)wait_str;
+}
+
+void setWaitSensor(DsType sensor, double temperature){
+	char d[WAIT_STR_LEN];
+	wait_sensor = sensor;
+	wait_T = temperature;
+	snprintf(d, sizeof(d)-1, "%s:%3.1f", getDsTypeStr(sensor), temperature);
+	setWaitStr(d);
+}
+
+void 	setWaitTime(const char* s, uint32_t time){
+	char buf[WAIT_STR_LEN];
+	snprintf(buf, sizeof(buf)-1, s , (time/3600), (time/60)%60, time%60);
+	setWaitStr(buf);
+}
+
+inline DsType getWaitSensor(void){
+	return wait_sensor;
+}
+
+inline double getWaitT(void){
+	return wait_T;
 }

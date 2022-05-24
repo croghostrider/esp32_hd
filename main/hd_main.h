@@ -217,6 +217,9 @@ void start_valve_PWMpercent(int valve_num, float period_sec, float percent_open)
 int hd_httpd_init(void);	// Запуск http сервера
 int hd_display_init(void);	// Запуск обработчика дисплея
 
+void 		setWaitStr(const char* s);
+const 	char *getWaitStr(void);
+
 #ifdef __cplusplus
 }
 #endif
