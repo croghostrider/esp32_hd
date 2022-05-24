@@ -1,5 +1,5 @@
 <!doctype html>
-<!--ver 0.7.4.7-->
+<!--ver 0.7.4.6-->
 <html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -44,7 +44,15 @@ body, html {
 }
 select {font-size: 10pt;background-color: #dfdfdf; padding: 3px;}
 
+.grid-state {
+  display: grid;
+  grid-template-columns: 250px 250px;
+  grid-gap: 6px;
+  padding: 6px;
+}
+
 img {border: 0; vertical-align: middle;}
+
 h1 {
 	color: var(--text-color); font-weight: bold; font-size: 16px;
         margin: 0; padding: 2px 0 3px 10px;
@@ -118,74 +126,17 @@ overflow-x: scroll; /* прокрутка по горизонтали */
 overflow-y: scroll; /* прокрутка по вертикали */
 }
 
-/*--------- переключатель-движок-------*/
-/*
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 20px;
-  margin-right: 2px;
-}
-
-.switch input {display:none;}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: gray;
-  -webkit-transition: .1s;
-  transition: .1s;
-}
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 14px;
-  width: 14px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  -webkit-transition: .1s;
-  transition: .1s;
-}
-input:checked + .slider {
-  background-color: blue;
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px #2196F3;
-}
-
-input:checked + .slider:before {
-  -webkit-transform: translateX(29px);
-  -ms-transform: translateX(29px);
-  transform: translateX(29px);
-}
-
 input[alt] {
   background-color: #0040ffe0;
   color: white;
   font-weight: bold;
-}    
-
-.slider.round {
-  border-radius: 34px;
 }
-
-.slider.round:before {
-  border-radius: 50%;
-}
-*/
-/*-переключатель-движок->>*/
 </style>
 
 <script>
 var Id;
 var extColdConnected=0;
+let alarm_sound_off = 0;
 
 (function() {
 
@@ -243,7 +194,9 @@ infoUpdate = function(d){
 	if (typeof(d.AlarmMode) != "undefined"){
         $(".AlarmMode").show();
         $(".AlarmMode").html(d.AlarmMode);
-        $("#alarmStr").show();
+        //$(".AlarmMode").css('color':'red');
+        //$("#alarmStr").css('color':'red');
+        //$("#alarmStr").show();
     } 
     else {
         $(".AlarmMode").html("");
@@ -319,6 +272,7 @@ update_sensor_temp=function(d){
 var WS_SOCK;
 var WS_address;
 var WS_protocol;
+
 function websock_init(address, protocol) {
   var error_try = 0;
   var ws_timeout;
@@ -327,12 +281,12 @@ function websock_init(address, protocol) {
    $(".log").append(str+'<br />');
    $(".log").scrollTop(9999);
   }
-  
+
   function ws_reconnect() {
     ws_status('TRY',"yellow");
     clearTimeout(ws_timeout);
     ws_timeout = null;
-   WS_SOCK = new WebSocket(WS_address, WS_protocol);
+    WS_SOCK = new WebSocket(WS_address, WS_protocol);
   }
   
   WS_address = 'ws://'+address+'/ws';
@@ -363,15 +317,23 @@ function websock_init(address, protocol) {
         break;
    }
   };
-  
+  WS_SOCK.onclose = function(e) {
+    console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+    setTimeout(function() {
+      ws_reconnect();
+    }, 2000);
+  };  
+  /*
   WS_SOCK.onclose = function() {
     ws_status('OFF',"red");
     setTimeout(ws_reconnect, 1000);
   };
-  
-  WS_SOCK.onerror = function() {
+  */
+  WS_SOCK.onerror = function(err) {
     ws_status('ERR',"red");
-    setTimeout(ws_reconnect, 1000);
+    console.error('Socket encountered error: ', err.message, 'Closing socket');
+    WS_SOCK.close();
+    setTimeout(ws_reconnect, 2000);
   };
 }
 
@@ -427,7 +389,7 @@ showStick = function(level,text) {
 <tr><td class="ta_l">
     <div class="ta_l">
         <a>WS:<span class="ws_status" style="background-color:red; border-radius:6px; padding-left:4px;padding-right:4px; width:40px;"></span> <span style="margin-left:6px;">(<a class="timeLastWS">6</a> сек.)</span></a> 
-        <span class="AlarmMode bold"></span>
+        <span class="AlarmMode bold" style="color:red;"></span>
     </div>
 <div class="ta_l"><span class="time"></span> up: <span class="uptime">0:0:0</span></div>
 <div class="ta_l MainModeStr bold"></div>
@@ -453,36 +415,34 @@ showStick = function(level,text) {
 <div class="multiwin" style="display:flex">
 <div style="text-align: left; overflow: auto; margin-bottom: 10px;">
 <div class="pages" id="main_div" style="display: none;">
-<table>
-<tbody>
-<tr><td>Режим: </td><td>
-    <select class="MainMode" name="MainMode" id="new_mode">
-        <option value="0">Мониторинг</option>
-        <option value="1">Регулятор мощности</option>
-        <option value="2">Дистилляция</option>
-        <option value="3">Ректификация</option>
-        <option value="10">Тестирование клапанов</option>
-    </select>
-    <input type="button" id="sw_mode" onclick="switch_mode();" value="Установить"/>
-</td></tr>
-<tr><td>Состояние: </td><td><span class="MainStatusStr bold"></span>
-<input type="button" id="prev_status" onclick="prev_status();" value="Предыдущее"/>
-<input type="button" id="next_status" onclick="next_status();" value="Следующее"/>
 
-</td></tr>
-<tr>
-    <td>
-    <div style="display:flex;align-items: center;">
-    Авария:
-        <!--<img src="pic1.png" height="30px" width="30px" style="margin-left:8px;margin-right:2px">-->
-        <label class="switch" > <input id="alarmsound" type="checkbox"> <span class="slider"> </span>  </label>
-        <img src="pic2.png" height="30px" width="30px" style="margin-right:12px">
-    </div>
-    </td>
-    <td class="AlarmMode bold"></td>
-</tr>
-</tbody>
-</table>
+<!--------------------------------------------->
+<div id="state_display" class="grid-state">
+      <span style="grid-column:1/span 2;">
+        Режим:<select class="MainMode" name="MainMode" id="new_mode">
+            <option value="0">Мониторинг</option>
+            <option value="1">Регулятор мощности</option>
+            <option value="2">Дистилляция</option>
+            <option value="3">Ректификация</option>
+            <option value="10">Тестирование клапанов</option>
+        </select>
+        <input type="button" id="sw_mode" onclick="switch_mode();" value="Установить"/>
+      </span>
+    
+      <div >Этап:<span class="MainStatusStr bold" style="width: 150px; padding-left: 5px;"></span></div>
+      <div >Ждем:<span id="waitStr" class="bold"></span></div>
+      <span style="grid-column:1/span 2;">
+          <input type="button" id="prev_status" onclick="prev_status();" value="<< Пред.этап"/>
+          <input type="button" id="next_status" onclick="next_status();" value="cлед.этап >>"/>
+      </span>
+      <div style="grid-column:1/span 2;">
+            Авария:
+                <label class="switch" > <input id="alarmsound" type="checkbox"> <span class="slider"> </span>  </label>
+                <img src="pic2.png" height="30px" width="30px" style="margin-right:12px">
+            <span class="AlarmMode bold" style="color:red;"></span>
+      </div>
+</div>
+<!--------------------------------------------->
 
 <table class="power">
 <tbody>
@@ -642,7 +602,6 @@ showStick = function(level,text) {
 <tr><td class="ta_r">Повтор нового пароля:</td>
 <td class="ta_l"><input id="newpasswd2" type="password" size="20" maxlength="16"></td></tr>
 <tr><td class="ta_c" style="display: none; color: red;" colspan="2" id="passmatch">Пароли не совпадают!!</td></tr>
-
 <tr><td class="ta_r">Использовать сервис smsc.ru:</td>
 <td class="ta_l"> <input type="checkbox" id="useSmsc" value="1"></td></tr>
 <tr><td class="ta_r">Имя пользователя smsc:</td>
@@ -1067,9 +1026,9 @@ putModeStat = function(d){
     let main_mode   = eval(d.MainMode);
     let main_status = eval(d.MainStatus);
     
-    if ((prev_mode==main_mode)&&(prev_state==main_status)) return;
+    //if ((prev_mode==main_mode)&&(prev_state==main_status)) return;
     prev_mode = main_mode;
-    prev_state= main_status
+    prev_state= main_status;
     
     let disable_mode_change = (((main_mode == 2)||(main_mode == 3)) && ((main_status>0)&&(main_status<100)));
     
@@ -1077,8 +1036,7 @@ putModeStat = function(d){
        
 	$(".MainModeStr").html(d.MainModeStr);
 	$(".MainStatusStr").html(d.MainStatusStr);
-	$(".ModeStr").html(d.MainModeStr);
-	$(".stateStr").html(d.MainStatusStr);
+	$("#waitStr").html(d.waitStr);
     
     if ((main_mode == 2)||(main_mode == 3)){ //rect or distill
 		$('#prev_status').show();
@@ -1130,7 +1088,7 @@ disp_main = function() {
 }
 
 save_network = function () {
-  var secure=0, useSmsc=0;
+  var secure=0, useSmsc=0,useTlg=0;
   if($('#secure').is(':checked')) secure=1;
   if($('#useSmsc').is(':checked')) useSmsc=1;
   if($('#useTlg').is(':checked')) useTlg=1;
@@ -1143,11 +1101,9 @@ save_network = function () {
 	'smscHash': $('#smscHash').val(),
 	'smscPhones': $('#smscPhones').val(),
 	'useSmsc':useSmsc,
-    
-	'tokenTlg': $('#tokenTlg').val(),
+		'tokenTlg': $('#tokenTlg').val(),
 	'chatidTlg': $('#chatidTlg').val(),
 	'useTlg':useTlg,
-    
 	'wsPeriod': $('#wsPeriod').val(),
 	'timezone': $('#timezone').val(),
 	'z_shift': $('#z_shift').val()
@@ -1530,7 +1486,7 @@ _sysinfo = function() {
 	$(".totalBytes").html('Всего: '+d.totalBytes);
 	$(".heap").html('heap: '+d.heap);
 	$(".rReason").html(d.rReason);
-    $('#alarmsound').prop("checked",false);
+    $('#alarmsound').prop("checked",0);
     if (eval(d.asoundOff)) $('#alarmsound').prop("checked",true);
     
     if (eval(d.no_power)) 
@@ -1562,9 +1518,6 @@ do_reset = function() {
   }, 'html');
 
 }
-
-let alarm_sound_off = 0;
-
 
 $('#alarmsound').click(function(){
     if ($(this).is(':checked')) alarm_sound_off=1;
@@ -1699,7 +1652,7 @@ async function beep_notes(array) {
   }
 }
 
-const alarm_beep = ()=>{
+function alarm_beep(){
     const alarmNotes = [4,9];    
     beep_notes(alarmNotes);
 }
