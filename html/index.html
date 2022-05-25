@@ -1,5 +1,5 @@
 <!doctype html>
-<!--ver 0.7.4.6-->
+<!--ver 0.7.4.8-->
 <html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -641,6 +641,8 @@ showStick = function(level,text) {
         <tr><td class="ta_r">PZEM протокол v.30 (modbus RTU) <span class="red">*</span>: </td><td class="ta_l"><input id="pzemVersion" type="checkbox" value=1>Да</td></tr>
         <tr><td colspan="2" class="ta_subtitle">Звук</td></tr>
         <tr><td class="ta_r">Тихий режим работы клапанов: </td> <td class="ta_l"><input id="klpSilentNode" type="checkbox" value=1></td></tr>
+        <tr><td class="ta_r">ШИМ удержания клапанов: </td><td class="ta_l"><input id="klpKeepPWM" type="text" size="3" maxlength="3">%</td></tr>
+            
         <tr><td class="ta_r">Звук при переключении режимов: </td> <td class="ta_l"><input id="beepChangeState" type="checkbox" value=1></td></tr>
         <tr><td colspan="2" class="ta_subtitle">Сервис</td></tr>
         <tr><td class="ta_r">Gpio включенный во время процесса (0 - нет): </td><td class="ta_l"><input id="processGpio" type="text" size="8" maxlength="8" value="0"></td></tr>
@@ -1022,7 +1024,6 @@ prev_mode  = -1;
 prev_state = -1;
 
 putModeStat = function(d){
-    //if ($(".MainMode").data("focused")==0) {
     let main_mode   = eval(d.MainMode);
     let main_status = eval(d.MainStatus);
     
@@ -1032,9 +1033,12 @@ putModeStat = function(d){
     
     let disable_mode_change = (((main_mode == 2)||(main_mode == 3)) && ((main_status>0)&&(main_status<100)));
     
-    $(".MainMode").val(main_mode);
+    if ($(".MainMode").data("focused")!=0) {
+        $(".MainMode").val(main_mode);
+    }
        
-	$(".MainModeStr").html(d.MainModeStr);
+    $(".MainModeStr").html(d.MainModeStr);
+    
 	$(".MainStatusStr").html(d.MainStatusStr);
 	$("#waitStr").html(d.waitStr);
     
@@ -1188,6 +1192,7 @@ set_parameters = function() {
 	'timeStabKolonna': $("#timeStabKolonna").val(),
 	'timeRestabKolonna': $("#timeRestabKolonna").val(),
 	'klpSilentNode': klpSilentNode,
+	'klpKeepPWM': $("#klpKeepPWM").val(),
 	'urovenProvodimostSR': $("#urovenProvodimostSR").val(),
 	'cntCHIM': $("#cntCHIM").val(),
 	'decrementCHIM': $("#decrementCHIM").val(),
@@ -1235,6 +1240,7 @@ disp_setting = function() {
 	$("#timeRestabKolonna").val(d.timeRestabKolonna);
 	if (eval(d.klpSilentNode)) $('#klpSilentNode').prop('checked', 1);
         else $('#klpSilentNode').removeAttr('checked');
+	$("#klpKeepPWM").val(d.klpKeepPWM),
 	$("#urovenProvodimostSR").val(d.urovenProvodimostSR);
 	$("#cntCHIM").val(d.cntCHIM);
 	$("#decrementCHIM").val(d.decrementCHIM);
