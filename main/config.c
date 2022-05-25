@@ -33,6 +33,7 @@ License (MIT license):
 
 #include "esp_log.h"
 #include "config.h"
+#include "debug.h"
 
 /* Сетевые параметры */
 vaiable_list NET_PARAMS[] =
@@ -80,6 +81,8 @@ vaiable_list DEFL_PARAMS[] =
 	{"timeStabKolonna",	VARIABLE_INT,	0,	3500,	"900",	NULL},
 	{"timeRestabKolonna",	VARIABLE_INT,	0,	3500,	"1800", NULL},
 	{"klpSilentNode", 	VARIABLE_CHECKBOX, 0,	1,	"1",	NULL},
+	{"klpKeepPWM", 	VARIABLE_INT, 0,	100,	"30",	NULL},
+
 	{"urovenProvodimostSR", VARIABLE_INT,	0,	1000,	"0",	NULL},
 	{"cntCHIM", 		VARIABLE_INT,	-100,	100,	"-4",	NULL},
 	{"decrementCHIM", 	VARIABLE_INT,	-100,	100,	"10",	NULL},
@@ -271,33 +274,33 @@ int checkParam(vaiable_list list[], char *name)
 int setParam(vaiable_list list[], char *name, char *value)
 {
 	vaiable_list *v;
+	char buffer[20];
+
 	for (v = list; v && v->name; v++) {
 		if (!strcasecmp(name, v->name)) {
+			if (v->val) free(v->val);
+
 			switch (v->type) {
 			case VARIABLE_CHECKBOX:
 			case VARIABLE_STRING:
-				if (v->val) free(v->val);
 				v->val = strdup(value);
 				break;
 			case VARIABLE_INT:
-				if (v->val) free(v->val);
-				int i = atoi(v->default_val);
-				if (i < v->min || i > v->max) {
-					v->val = strdup(v->default_val);
-				} else {
-					v->val = strdup(value);
-				}
-				break;
 			case VARIABLE_FLOAT:
-				if (v->val) free(v->val);
-				double d = atof(v->default_val);
-				if (d < (float)(v->min) || d > (float)(v->max)) {
-					v->val = strdup(v->default_val);
+				;double d = atof(value);
+				if (d < v->min){
+					itoa(v->min, buffer, 10);
+					v->val = strdup(buffer);
+				}
+				else if (d > v->max) {
+					itoa(v->max, buffer, 10);
+					v->val = strdup(buffer);
 				} else {
 					v->val = strdup(value);
 				}
 				break;
 			}
+
 			return 1;
 		}
 	}

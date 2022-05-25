@@ -138,7 +138,7 @@ extern int16_t fAlarmSoundOff; //флаг выключения звука ава
 
 #define VALVE_DUTY 1023
 #define VALVE_ON_FADE_TIME_MS 100
-#define KEEP_KLP_PWM 30  // процент ШИМ удержания
+//#define KEEP_KLP_PWM 30  // процент ШИМ удержания
 #define KEEP_KLP_DELAY_MS 100  // задержка начала снижения ШИМ клапана после включения, мс
 
 // Определение для работы с клапанами
