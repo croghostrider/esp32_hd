@@ -2168,23 +2168,40 @@ void valveCMDtask(void *arg){
 					prevValveSwitch=xLastWakeTime;
 	#endif
 					Klp[qcmd.valve_num].is_open = true;
-					// ---------логика снижения ШИМ клапана после его включения---------
-					if (((qcmd.valve_num == klp_water)&&(getIntParam(DEFL_PARAMS,"klp1_isPWM"))) //если не клапан а насос, то не снижаем
-						||
-						 (qcmd.valve_num == klp_diff) // если это ключ выхода на дифф-автомат то не снижаем
-						) break;
+					// ---------логика снижения тока клапана после его включения---------
+					uint32_t keepPWM = getIntParam(DEFL_PARAMS,"klpKeepPWM");
+					DBGV("keepPWM:%d",keepPWM);
 
-					if ((KEEP_KLP_PWM==0)||(KEEP_KLP_PWM==100)) break;								// если настройка ШИМ удержания 0 или 100 - не снижаем
-					if (	(Klp[qcmd.valve_num].is_pwm)																//если клапан в ШИМ
-							&&																										//и время открытого его состояния
+					// ---не снижаем если
+					if ((keepPWM==0)||(keepPWM==100)) // настройка ШИМ удержания 0 или 100
+					{
+						DBGV("100 or 0");
+						break;
+					}
+
+					if ((qcmd.valve_num == klp_water)&&(getIntParam(DEFL_PARAMS,"klp1_isPWM"))) //клапан1 на воду это не клапан а питание насоса
+					{
+						DBGV("water pump");
+						break;
+					}
+					if (qcmd.valve_num == klp_diff) // это клапан4, выход на дифф-автомат
+					{
+						DBGV("klp4");
+						break;
+					}
+					if (	(Klp[qcmd.valve_num].is_pwm)																//клапан в режиме программного ШИМ
+								&&																										//и время его открытого состояния
 							(KEEP_KLP_DELAY_MS >= (Klp[qcmd.valve_num].open_time*1000))			//меньше времени задержки до перехода на удержание
-						)	{																											// то не снижаем
+						)
+					{
+						DBGV("pwm open time");
 						break;
 					}
 
 					vTaskDelayUntil( &xLastWakeTime, KEEP_KLP_DELAY_MS/portTICK_PERIOD_MS );//ждем включения механики клапана
-					ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, ((VALVE_DUTY*KEEP_KLP_PWM)/100ul));
+					ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, ((VALVE_DUTY*keepPWM +50)/100ul));
 					ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
+					DBGV("set duty:%d", (int)((VALVE_DUTY*keepPWM +50)/100ul));
 				}
 				else {
 					DBGV("ON ignored");
