@@ -127,6 +127,7 @@ int ICACHE_FLASH_ATTR cgiWebsockBroadcast(char *resource, char *data, int len, i
 	Websock *lw=llStart;
 	while (lw!=NULL) {
 		if (strcmp(lw->conn->url, resource)==0) {
+			httpd_printf("sent to IP:%d.%d.%d.%d",lw->conn->remote_ip[0],lw->conn->remote_ip[1],lw->conn->remote_ip[2],lw->conn->remote_ip[3]);
 			httpdConnSendStart(lw->conn);
 			cgiWebsocketSend(lw, data, len, flags);
 			httpdConnSendFinish(lw->conn);
@@ -135,6 +136,7 @@ int ICACHE_FLASH_ATTR cgiWebsockBroadcast(char *resource, char *data, int len, i
 		lw=lw->priv->next;
 	}
 	xSemaphoreGive(wsLock);
+	httpd_printf("count addresses:%d",ret);
 	return ret;
 }
 
@@ -171,7 +173,7 @@ int ICACHE_FLASH_ATTR cgiWebSocketRecv(HttpdConnData *connData, char *data, int 
 	int wasHeaderByte;
 	Websock *ws=(Websock*)connData->cgiData;
 	for (i=0; i<len; i++) {
-//		httpd_printf("Ws: State %d byte 0x%02X\n", ws->priv->wsStatus, data[i]);
+		httpd_printf("Ws: State %d byte 0x%02X\n", ws->priv->wsStatus, data[i]);
 		wasHeaderByte=1;
 		if (ws->priv->wsStatus==ST_FLAGS) {
 			ws->priv->maskCtr=0;
@@ -295,14 +297,14 @@ int ICACHE_FLASH_ATTR cgiWebsocket(HttpdConnData *connData) {
 	}
 	
 	if (connData->cgiData==NULL) {
-//httpd_printf("WS: First call\n");
+		httpd_printf("cgi is NULL; call  from IP:%s IP:%d.%d.%d.%d",connData->url,connData->remote_ip[0],connData->remote_ip[1],connData->remote_ip[2],connData->remote_ip[3]);
 		//First call here. Check if client headers are OK, send server header.
 		i=httpdGetHeader(connData, "Upgrade", buff, sizeof(buff)-1);
-		httpd_printf("WS: Upgrade: %s\n", buff);
+		httpd_printf("header upgrade:%s", buff);
 		if (i && strcasecmp(buff, "websocket")==0) {
 			i=httpdGetHeader(connData, "Sec-WebSocket-Key", buff, sizeof(buff)-1);
 			if (i) {
-//httpd_printf("WS: Key: %s\n", buff);
+				httpd_printf("Key:%s", buff);
 				//Seems like a WebSocket connection.
 				// Alloc structs
 				connData->cgiData=malloc(sizeof(Websock));
@@ -351,18 +353,22 @@ int ICACHE_FLASH_ATTR cgiWebsocket(HttpdConnData *connData) {
 				xSemaphoreTake(wsLock, portMAX_DELAY);
 				if (llStart==NULL) {
 					llStart=ws;
+					httpd_printf("it's the first!");
 				} else {
 					Websock *lw=llStart;
 					while (lw->priv->next) lw=lw->priv->next;
 					lw->priv->next=ws;
+					httpd_printf("add to list");
 				}
 				xSemaphoreGive(wsLock);
+				httpd_printf("HTTPD_CGI_MORE\n");
 				return HTTPD_CGI_MORE;
 			}
 		}
 		//No valid websocket connection
 		httpdStartResponse(connData, 500);
 		httpdEndHeaders(connData);
+		httpd_printf("No valid websocket connection HTTPD_CGI_DONE\n");
 		return HTTPD_CGI_DONE;
 	}
 	//Sending is done. Call the sent callback if we have one.

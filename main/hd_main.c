@@ -92,6 +92,8 @@ unsigned char ds1820_devices;                  // Количество датч�
 unsigned char klp_gpio[4] =  {26, 27, 32, 33};
 klp_list Klp[MAX_KLP];		// Список клапанов.
 xQueueHandle valve_cmd_queue; // очередь команд клапанов
+uint16_t water_duty_percent=100;
+
 void valveCMDtask(void *arg);
 void cmd2valve (int valve_num, valve_cmd_t cmd);
 void restoreProcess(void);
@@ -568,7 +570,7 @@ void valvePWMtask(void *arg){
 	while(1) {
 		if (Klp[num].is_pwm) {
 			DBGV("pwmON |%.1f sec|",Klp[num].open_time);
-			if (Klp[num].open_time>0.15) { //if time less 0.2 sec do nothing
+			if (Klp[num].open_time>0.1) { //do nothing if time is too small
 				cmd2valve (num, cmd_open);				//turn-on valve
 				vTaskDelayUntil( &xLastWakeTime, SEC_TO_TICKS(Klp[num].open_time));
 			}
@@ -592,7 +594,7 @@ void valvePWMtask(void *arg){
 }
 
 
-void IRAM_ATTR timer0_group0_isr(void *para)
+void IRAM_ATTR timer0_group0_1ms_ISR(void *para)
 {
 	int timer_idx = (int) para;
 	uint32_t intr_status = TIMERG0.int_st_timers.val;
@@ -636,15 +638,13 @@ void IRAM_ATTR timer0_group0_isr(void *para)
 }
 
 /**
- * Настройка аппаратного таймера из group0
+ * Настройка аппаратного таймера генерировать прерывания раз в 1 милисекунду
  */
 static void tg0_timer0_init()
 {
 	int timer_group = TIMER_GROUP_0;
 	int timer_idx = TIMER_1;
 	timer_config_t config;
-
-	//timer_queue = xQueueCreate(10, sizeof(uint32_t));
 
 	config.alarm_en = true;
 	config.auto_reload = 1;
@@ -668,12 +668,10 @@ static void tg0_timer0_init()
     timer_enable_intr(timer_group, timer_idx);
 
     /* Устанавливаем обработчик прерывания */
-    timer_isr_register(timer_group, timer_idx, timer0_group0_isr, (void*) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
+    timer_isr_register(timer_group, timer_idx, timer0_group0_1ms_ISR, (void*) timer_idx, ESP_INTR_FLAG_IRAM, NULL);
 
-    /* Запускаем отсчет таймера */
+    /* Запускаем таймер */
     timer_start(timer_group, timer_idx);
-
-    xTaskCreate(valvePWMtask, "valvePWMtask", 8192, NULL, 5, NULL);
 }
 
 // ISR triggered by GPIO edge at the end of each Alternating Current half-cycle.
@@ -682,13 +680,14 @@ static void tg0_timer0_init()
 void IRAM_ATTR gpio_isr_handler(void* arg) 
 { 
 	uint32_t intr_st = GPIO.status;
-	if (intr_st & (1 << GPIO_DETECT_ZERO)) {
+	if (intr_st & (1 << GPIO_DETECT_ZERO)) { 			// если прерывание
+		if (!(GPIO.in & (1 << GPIO_DETECT_ZERO))) {	// на выводе подключенном к детектору нуля сети
 
-		if (!(GPIO.in & (1 << GPIO_DETECT_ZERO))) {
-			// Zero the PWM timer at the zero crossing.
+			// обнуляем ШИМ-таймер включающий симистор
 			LEDC.timer_group[0].timer[0].conf.rst = 1;
 			LEDC.timer_group[0].timer[0].conf.rst = 0;
 		
+			// задаем ШИМ-таймеру уставку
 			if (Hpoint >= HMAX - TRIAC_GATE_MAX_CYCLES) {
 				// If hpoint if very close to the maximum value, ie mostly off, simply turn off 
 				// the output to avoid glitch where hpoint exceeds duty. 
@@ -697,10 +696,11 @@ void IRAM_ATTR gpio_isr_handler(void* arg)
 				LEDC.channel_group[0].channel[0].hpoint.hpoint = Hpoint; 
 				LEDC.channel_group[0].channel[0].conf0.sig_out_en = 1; 
 				LEDC.channel_group[0].channel[0].conf1.duty_start = 1; 
-			} 
+			}
+			// увеличим счетчик срабатываний детектора нуля сети
 			gpio_counter++;
 		}
-	} else if (intr_st & (1 << GPIO_ALARM)) {
+	} else if (intr_st & (1 << GPIO_ALARM)) { // прерывание от вывода "внешняя авария"
 		// Авария от внешнего источника
 		AlarmMode |= ALARM_EXT;
 	}
@@ -763,7 +763,7 @@ cJSON* getInformation(void)
 {
 	char data[80];
 	const char *wo;
-	cJSON *ja, *j, *jt;
+	cJSON *ja, *j;
 	time_t CurrentTime;
 	struct tm CurrentTm;
 
@@ -805,23 +805,10 @@ cJSON* getInformation(void)
 	cJSON_AddItemToObject(ja, "sensors", j);
 
 	j = cJSON_CreateArray();
-	cJSON_AddItemToObject(ja, "klapans", j);
 	for (int i=0; i<MAX_KLP; i++) {
-		float pwm =  (Klp[i].open_time+Klp[i].close_time);
-		float pwm_percent = 0;
-		if (Klp[i].open_time>0) {
-			float p = pwm/Klp[i].open_time;
-			if (p) pwm_percent = roundX(100/p,2);
-		}
-
-		jt = cJSON_CreateObject();
-		cJSON_AddItemToArray(j, jt);
-		cJSON_AddItemToObject(jt, "id", cJSON_CreateNumber(i));
-		cJSON_AddItemToObject(jt, "is_pwm", cJSON_CreateNumber(Klp[i].is_pwm));
-		cJSON_AddItemToObject(jt, "is_open", cJSON_CreateNumber(Klp[i].is_open));
-		cJSON_AddItemToObject(jt, "pwm_time", cJSON_CreateNumber((int)pwm));
-		cJSON_AddItemToObject(jt, "pwm_percent", cJSON_CreateNumber((int)(pwm_percent+0.5)));
+		cJSON_AddItemToArray(j, json_klp(i));
 	}
+	cJSON_AddItemToObject(ja, "klapans", j);
 
 	if (MODE_RECTIFICATION == MainMode) {
 		float timeStabKolonna= fabs(getFloatParam(DEFL_PARAMS, "timeStabKolonna"));
@@ -1680,8 +1667,16 @@ void Distillation(void)
 	}
 }
 
+void procTask(void *arg){
+	while (1) {
+		if (MODE_RECTIFICATION == MainMode) Rectification();
+		else if (MODE_DISTIL == MainMode) Distillation();
+		vTaskDelay(1000/portTICK_PERIOD_MS);
+	}
+}
+
 /*
- * send command (ON/OFF) to valvePWMtask
+ * send command (ON/OFF) to a specified valve
  */
 void cmd2valve (int valve_num, valve_cmd_t cmd){
 	static valveCMDmessage_t cmd_message;
@@ -2094,14 +2089,14 @@ void app_main(void)
 	emulateT(DS_TUBE20, 45.0);
 #endif
 
+	xTaskCreate(&procTask, "proc scheduler", 4096*2, NULL, 1, NULL);
+
 	while (true) {
 		cJSON *ja = getInformation();
      		char *r=cJSON_Print(ja);
 		cgiWebsockBroadcast("/ws", r, strlen(r), WEBSOCK_FLAG_NONE);
 		cJSON_Delete(ja);
 		if (r) free(r);
-		if (MODE_RECTIFICATION == MainMode) Rectification();
-		else if (MODE_DISTIL == MainMode) Distillation();
 		vTaskDelay(wsPeriod*1000/portTICK_PERIOD_MS);
 	}
 }
@@ -2113,6 +2108,8 @@ void valveCMDtask(void *arg){
 #ifdef DEBUGV
 	TickType_t prevValveSwitch=0;
 #endif
+
+	water_duty_percent = 100;
 
 	// LEDC
 	ledc_timer_config_t ledc_timer1 = {
@@ -2145,67 +2142,51 @@ void valveCMDtask(void *arg){
 	ledc_fade_func_install(0);
 
 	while (1){
-		if (xQueueReceive(valve_cmd_queue, &qcmd, portMAX_DELAY)!=pdTRUE) // ждем события на открытие/закрытие клапана
+		if (xQueueReceive(valve_cmd_queue, &qcmd, portMAX_DELAY)==pdFALSE) // ждем события на открытие/закрытие клапана
 			continue;																							// если таймаут - повторим
 		ch = Klp[qcmd.valve_num].channel;															// ledc-канал  клапана
 		LEDC.channel_group[0].channel[ch].conf0.sig_out_en = 1;
 		DBGV("v:%d(ch:%d) cmd:%d",qcmd.valve_num,ch,qcmd.cmd);
 		switch (qcmd.cmd) {
 			case cmd_open:
-				if (! Klp[qcmd.valve_num].is_open) { // если клапан закрыт то открываем
-					// -------логика "тихого" включения
-					xLastWakeTime = xTaskGetTickCount ();// системное время включения, в тиках
-					if (getIntParam(DEFL_PARAMS,"klpSilentNode")) {
-						ledc_set_fade_with_time(LEDC_HIGH_SPEED_MODE, ch, VALVE_DUTY, VALVE_ON_FADE_TIME_MS);
-						ledc_fade_start(LEDC_HIGH_SPEED_MODE, ch, LEDC_FADE_NO_WAIT);
-						//vTaskDelay(VALVE_ON_FADE_TIME_MS/portTICK_PERIOD_MS);
-					} else {
-						ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, VALVE_DUTY);
-						ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
-					}
+				xLastWakeTime = xTaskGetTickCount ();// системное время включения, в тиках
+				Klp[qcmd.valve_num].is_open = true;
+				int duty;
+
+
+				if ((qcmd.valve_num == klp_water)&&(getIntParam(DEFL_PARAMS,"klp1_isPWM"))) {
+					duty = water_duty_percent; // % ШИМ питания насоса
+				}
+				else {// % ШИМ удержания клапана
+					 duty = getIntParam(DEFL_PARAMS,"klpKeepPWM");
+				}
+				duty = (VALVE_DUTY*duty +50)/100ul;
+				// -------включение
+				ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, VALVE_DUTY);
+				ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
+
 	#ifdef DEBUGV
-					DBGV(" ON:%d(%d ms)",qcmd.valve_num, (xLastWakeTime-prevValveSwitch)*portTICK_PERIOD_MS );
-					prevValveSwitch=xLastWakeTime;
+				DBGV(" ON:%d(%d ms)",qcmd.valve_num, (xLastWakeTime-prevValveSwitch)*portTICK_PERIOD_MS );
+				prevValveSwitch=xLastWakeTime;
 	#endif
-					Klp[qcmd.valve_num].is_open = true;
-					// ---------логика снижения тока клапана после его включения---------
-					uint32_t keepPWM = getIntParam(DEFL_PARAMS,"klpKeepPWM");
-					DBGV("keepPWM:%d",keepPWM);
-
-					// ---не снижаем если
-					if ((keepPWM==0)||(keepPWM==100)) // настройка ШИМ удержания 0 или 100
-					{
-						DBGV("100 or 0");
-						break;
-					}
-
-					if ((qcmd.valve_num == klp_water)&&(getIntParam(DEFL_PARAMS,"klp1_isPWM"))) //клапан1 на воду это не клапан а питание насоса
-					{
-						DBGV("water pump");
-						break;
-					}
-					if (qcmd.valve_num == klp_diff) // это клапан4, выход на дифф-автомат
-					{
-						DBGV("klp4");
-						break;
-					}
-					if (	(Klp[qcmd.valve_num].is_pwm)																//клапан в режиме программного ШИМ
-								&&																										//и время его открытого состояния
+				// ---------логика снижения тока клапана после его включения---------
+				// ---не снижаем если
+				if (
+						(qcmd.valve_num == klp_diff)  || 			// это клапан4, выход на дифф-автомат
+						(	(Klp[qcmd.valve_num].is_pwm)																//клапан в режиме программного ШИМ
+							&&																										//и время его открытого состояния
 							(KEEP_KLP_DELAY_MS >= (Klp[qcmd.valve_num].open_time*1000))			//меньше времени задержки до перехода на удержание
 						)
-					{
-						DBGV("pwm open time");
-						break;
-					}
+					)
+				{
+					DBGV("pwm no decrease");
+					break;
+				}
+				vTaskDelayUntil( &xLastWakeTime, KEEP_KLP_DELAY_MS/portTICK_PERIOD_MS );//ждем включения механики клапана
+				ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, duty);
+				ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
+				DBGV("set duty:%d", duty);
 
-					vTaskDelayUntil( &xLastWakeTime, KEEP_KLP_DELAY_MS/portTICK_PERIOD_MS );//ждем включения механики клапана
-					ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch, ((VALVE_DUTY*keepPWM +50)/100ul));
-					ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch);
-					DBGV("set duty:%d", (int)((VALVE_DUTY*keepPWM +50)/100ul));
-				}
-				else {
-					DBGV("ON ignored");
-				}
 				break;
 
 			case cmd_close:
@@ -2315,4 +2296,39 @@ inline DsType getWaitSensor(void){
 
 inline double getWaitT(void){
 	return wait_T;
+}
+
+/* задать в процентах быстрый ШИМ для ключа управления клапаном/насосом воды
+ *
+ */
+int setWaterPWM(int pwm_percent) {
+	water_duty_percent = pwm_percent;
+	if (pwm_percent>100) water_duty_percent = 100;
+	if (pwm_percent<0) water_duty_percent = 0;
+	openKlp(klp_water);
+	return water_duty_percent;
+}
+
+cJSON* json_klp(int i){
+	cJSON *jt = cJSON_CreateObject();
+	float period=0;
+	float percent = 0;
+
+	if (i==klp_water) {
+		if (Klp[i].is_open)	percent = water_duty_percent;
+	}
+	else {
+		period =  (Klp[i].open_time+Klp[i].close_time);
+		percent = 0;
+		if (Klp[i].open_time>0) {
+			float p = period/Klp[i].open_time;
+			if (p) percent = roundX(100/p,2);
+		}
+	}
+	cJSON_AddItemToObject(jt, "id", cJSON_CreateNumber(i));
+	cJSON_AddItemToObject(jt, "is_pwm", cJSON_CreateNumber(Klp[i].is_pwm));
+	cJSON_AddItemToObject(jt, "is_open", cJSON_CreateNumber(Klp[i].is_open));
+	cJSON_AddItemToObject(jt, "pwm_time", cJSON_CreateNumber((int)period));
+	cJSON_AddItemToObject(jt, "pwm_percent", cJSON_CreateNumber((int)(percent+0.5)));
+	return jt;
 }

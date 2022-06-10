@@ -36,7 +36,7 @@ License (MIT license):
 #define DEFAULT_PASSWORD "12345"
 
 #define FIRMWARE_UPDATE_URL "http://192.168.0.79/"
-#define ESP32_VERSION "0.7.4.7"
+#define ESP32_VERSION "0.7.4.9"
 
 #define WiFiStateConnected      0
 #define WiFiStateWaitToConnect  1
