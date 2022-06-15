@@ -194,6 +194,7 @@ const char *getMainStatusStr(void);
 const char *getResetReasonStr(void); // Получение строки о причине перезагрузки
 
 cJSON* getInformation(void);
+cJSON* json_klp(int i);
 
 void write2log(const char* s);
 
@@ -211,6 +212,7 @@ void closeAllKlp(void);		// Закрытие всех клапанов.
 void openKlp(int i);		// Открытие клапана воды
 void closeKlp(int i);		// Закрытие определенного клапана
 void startKlpPwm(int i, float topen, float tclose); // Запуск шима клапана
+int setWaterPWM(int pwm_percent);	//задать в процентах быстрый ШИМ ключа управления насосом воды. Вернет текущий % ШИМ
 
 void start_valve_PWMpercent(int valve_num, float period_sec, float percent_open);
 

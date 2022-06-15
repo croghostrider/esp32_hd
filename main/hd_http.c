@@ -676,17 +676,7 @@ int httpKlpStatus(HttpdConnData *connData)
 		httpdFindArg(connData->getArgs, "id", id, sizeof(id));
 		i = atoi(id);
 		if (i < MAX_KLP) {
-			int pwm = Klp[i].open_time+Klp[i].close_time;
-			float pwm_percent = 0;
-			if (Klp[i].open_time>0) {
-				float p = pwm/Klp[i].open_time;
-				if (p) pwm_percent = 100/p;
-			}
-			cJSON_AddItemToObject(ja, "id", cJSON_CreateNumber(i));
-			cJSON_AddItemToObject(ja, "is_pwm", cJSON_CreateNumber(Klp[i].is_pwm));
-			cJSON_AddItemToObject(ja, "is_open", cJSON_CreateNumber(Klp[i].is_open));
-			cJSON_AddItemToObject(ja, "pwm_time", cJSON_CreateNumber(pwm));
-			cJSON_AddItemToObject(ja, "pwm_percent", cJSON_CreateNumber((int)(pwm_percent+0.5)));
+			ja = json_klp(i);
 			cJSON_AddItemToObject(ja, "err", cJSON_CreateNumber(0));
 			cJSON_AddItemToObject(ja, "msg", cJSON_CreateString("OK"));
 		}
@@ -741,26 +731,30 @@ int httpKlpShimOn(HttpdConnData *connData)
 	if (checkAuth(connData)) return HTTPD_CGI_DONE;
 	send_json_headers(connData);
 	if (connData->requestType == HTTPD_METHOD_POST) {
-		int klp_id;
-		float topen = 0, period, percent;
+		int klp_id, period, percent;
 		char id[10], p[10]="0", k[10]="0";
 		httpdFindArg(connData->post->buff, "id", id, sizeof(id));
-		httpdFindArg(connData->post->buff, "period", p, sizeof(p));
-		httpdFindArg(connData->post->buff, "klp_on", k, sizeof(k));
-		period = atoi(p);
-		percent = atoi(k);
 		klp_id=atoi(id);
-
+		httpdFindArg(connData->post->buff, "klp_on", k, sizeof(k));
+		percent = atoi(k);
 		if (percent>100) percent = 100;
-		if(period && percent) {
-			topen = period/100*percent;
-			if (topen > 0) startKlpPwm(klp_id, topen, period-topen);
-			if (	(klp_id==klp_sr) &&
-					(MainMode==MODE_RECTIFICATION) &&
-					(MainStatus>=PROC_RAZGON)	&&
-					(MainStatus<PROC_HV)
-				)	setNewProcChimSR((int)percent);
+
+		if (klp_id==0){ // клапан воды
+			percent = setWaterPWM(percent);
 		}
+		else {//остальные клапана
+			httpdFindArg(connData->post->buff, "period", p, sizeof(p));
+			period = atoi(p);
+			if(period && percent) {
+				start_valve_PWMpercent( klp_id, period, percent);
+				if (	(klp_id==klp_sr) &&
+						(MainMode==MODE_RECTIFICATION) &&
+						(MainStatus>=PROC_RAZGON)	&&
+						(MainStatus<PROC_HV)
+					)	setNewProcChimSR((int)percent);
+			}
+		}
+
 		json_ok(connData);
 	} else {
 		json_err(connData);
@@ -961,6 +955,7 @@ int httpSysinfo(HttpdConnData *connData)
 	cJSON_AddItemToObject(ja, "rReason", cJSON_CreateString(getResetReasonStr()));
 	cJSON_AddItemToObject(ja, "asoundOff", cJSON_CreateNumber(fAlarmSoundOff));
 	cJSON_AddItemToObject(ja, "no_power", cJSON_CreateNumber(getIntParam(DEFL_PARAMS, "no_power")));
+	cJSON_AddItemToObject(ja, "klp1pwm", cJSON_CreateNumber(getIntParam(DEFL_PARAMS,"klp1_isPWM")));
 
 	char *r=cJSON_Print(ja);
 	if (r) {
