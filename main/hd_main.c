@@ -2246,16 +2246,16 @@ void restoreProcess(void) {
 	nvs_get_i16(nvsHandle, "MainMode", (int16_t*)&MainMode);
 	nvs_get_i16(nvsHandle, "SetPower", &pw);
 	nvs_get_i16(nvsHandle, "MainStatus", &MainStatus);
-	DBG("MMode:%d State:%d Power:%d",MainMode,MainStatus,pw);
+	ESP_LOGI(__func__,"MMode:%d State:%d Power:%d",MainMode,MainStatus,pw);
 	switch (MainMode) {
 		case  MODE_RECTIFICATION:
 		case  MODE_DISTIL:
 			if ( (MainStatus>PROC_START) && (MainStatus<PROC_END)){
 				broken_proc = true;
-				ESP_ERROR_CHECK(nvs_get_u64(nvsHandle, "tempStabSR", (uint64_t*)&tempStabSR));
+				nvs_get_u64(nvsHandle, "tempStabSR", (uint64_t*)&tempStabSR);
 				nvs_get_u64(nvsHandle, "tempTube20Prev", (uint64_t*)&tempTube20Prev);
 				nvs_get_i16(nvsHandle, "ProcChimSR", &ProcChimSR);
-				DBG("broken proc=true  Tstab:%02.1f Tprev:%02.1f ProcPWM:%d",tempStabSR,tempTube20Prev,ProcChimSR);
+				ESP_LOGI(__func__,"broken proc=true  Tstab:%02.1f Tprev:%02.1f ProcPWM:%d",tempStabSR,tempTube20Prev,ProcChimSR);
 			} // @suppress("No break at end of case")
 		case  MODE_POWEERREG:
 			  setPower(pw);
