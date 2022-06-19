@@ -13,9 +13,10 @@ idf_component_register( SRCS
 "OLEDDisplayFonts.c" 
 "sh1106.c"
 "sms.c"
+"hd_log.c"
 INCLUDE_DIRS "." "libesphttpd/include" "esp-request/include" "md5" "adafruit" 
-#"ads1115"
+
 REQUIRES "adafruit" "libesphttpd" "esp-request" "md5" "console nvs_flash" "json" 
-"openssl" "app_update" "esp_netif" "tcpip_adapter" "esp-tls" "esp_http_client")
-# "ads1115")
+"openssl" "app_update" "esp_netif" "tcpip_adapter" "esp-tls" "esp_http_client"
+)
                     

@@ -163,21 +163,6 @@ extern volatile int zero_imp_shift;
 #define EXISTS_ALARM(A)  (AlarmMode & (A))
 #define CLEAR_ALARM(A)  do {AlarmMode &= ~(A);} while(0)
 #define SET_ALARM(A)  do {AlarmMode |= (A);} while(0)
-#define ERR_MSG( format, ... ) ESP_LOGE(__func__, format, ##__VA_ARGS__)
-
-#define NO_LOG
-#ifndef NO_LOG
-#define LOG( format, ... ) do { \
-		ESP_LOGI(__func__, format, ##__VA_ARGS__); \
-		char data[80]; \
-		snprintf(data, sizeof(data)-1, format, ##__VA_ARGS__); \
-		write2log(data);\
-	} while(0)
-#else
-#define LOG( format, ... ) do { \
-		ESP_LOGI(__func__, format, ##__VA_ARGS__); \
-	} while(0)
-#endif
 
 void myBeep(bool lng);		// Включаем бипер
 

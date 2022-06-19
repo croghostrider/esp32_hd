@@ -66,6 +66,7 @@ License (MIT license):
 #include "cgiwebsocket.h"
 #include "esp_request.h"
 #include "debug.h"
+#include "hd_log.h"
 
 
 //#define GPIO_INPUT_PIN_SEL  (1<<GPIO_DETECT_ZERO) 
@@ -2227,7 +2228,7 @@ void restoreProcess(void) {
 	nvs_get_i16(nvsHandle, "MainMode", (int16_t*)&MainMode);
 	nvs_get_i16(nvsHandle, "SetPower", &pw);
 	nvs_get_i16(nvsHandle, "MainStatus", &MainStatus);
-	ESP_LOGI(__func__,"MMode:%d State:%d Power:%d",MainMode,MainStatus,pw);
+	LOG_MSG("MMode:%d State:%d Power:%d",MainMode,MainStatus,pw);
 	switch (MainMode) {
 		case  MODE_RECTIFICATION:
 		case  MODE_DISTIL:
@@ -2236,7 +2237,7 @@ void restoreProcess(void) {
 				nvs_get_u64(nvsHandle, "tempStabSR", (uint64_t*)&tempStabSR);
 				nvs_get_u64(nvsHandle, "tempTube20Prev", (uint64_t*)&tempTube20Prev);
 				nvs_get_i16(nvsHandle, "ProcChimSR", &ProcChimSR);
-				ESP_LOGI(__func__,"broken proc=true  Tstab:%02.1f Tprev:%02.1f ProcPWM:%d",tempStabSR,tempTube20Prev,ProcChimSR);
+				LOG_MSG("broken proc=true  Tstab:%02.1f Tprev:%02.1f ProcPWM:%d",tempStabSR,tempTube20Prev,ProcChimSR);
 			} // @suppress("No break at end of case")
 		case  MODE_POWEERREG:
 			  setPower(pw);
@@ -2244,28 +2245,6 @@ void restoreProcess(void) {
 		default:
 			break;
 	}
-}
-
-void write2log(const char* s){
-	cJSON *ja;
-	char data[80];
-
-	ja = cJSON_CreateObject();
-	cJSON_AddItemToObject(ja, "cmd", cJSON_CreateString("logline"));
-	cJSON_AddItemToObject(ja, "ch", cJSON_CreateString(""));
-	cJSON_AddItemToObject(ja, "level", cJSON_CreateString(""));
-
-	time_t CurrentTime=time(NULL);
-	struct tm CurrentTm;
-	localtime_r(&CurrentTime, &CurrentTm);
-	snprintf(data, sizeof(data)-1, "%02d-%02d-%d %02d:%02d:%02d", CurrentTm.tm_mday,CurrentTm.tm_mon+1,CurrentTm.tm_year+1900, CurrentTm.tm_hour, CurrentTm.tm_min,CurrentTm.tm_sec);
-	cJSON_AddItemToObject(ja, "date", cJSON_CreateString(data));
-	cJSON_AddItemToObject(ja, "message", cJSON_CreateString(s));
-
- 	char *r=cJSON_Print(ja);
-	cgiWebsockBroadcast("/ws", r, strlen(r), WEBSOCK_FLAG_NONE);
-	cJSON_Delete(ja);
-	if (r) free(r);
 }
 
 void setWaitStr(const char* s){
