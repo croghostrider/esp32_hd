@@ -104,7 +104,7 @@ extern float TempWaterOut;	// Температура воды на выходе 
 extern int16_t WaterFlow;	// Значения датчика потока воды.
 extern int16_t fAlarmSoundOff; //флаг выключения звука аварии
 
-#define NO_BEEP
+//#define NO_BEEP
 
 #ifndef NO_BEEP
 #define GPIO_ON(A)		do {GPIO.out_w1ts = (1 << (A));} while(0)
