@@ -66,6 +66,8 @@ License (MIT license):
 #include "cgiwebsocket.h"
 #include "esp_request.h"
 #include "debug.h"
+#include "hd_log.h"
+#include "ads1015.h"
 
 
 //#define GPIO_INPUT_PIN_SEL  (1<<GPIO_DETECT_ZERO) 
@@ -121,11 +123,11 @@ int16_t CurPower;			// Текущая измерянная мощность
 int16_t SetPower;			// Установленная мощность
 int16_t CurVolts;			// Текущее измеренное напряжение
 volatile int16_t CurFreq;		// Измерянное число периодов в секунду питающего напряжения
-int16_t WaterOn =-1;			// Флаг включения контура охлаждения
-float TempWaterIn = -1;			// Температура воды на входе в контур
-float TempWaterOut = -1; 		// Температура воды на выходе из контура
-int16_t WaterFlow=-1;			// Значения датчика потока воды.
-int16_t fAlarmSoundOff=0;
+//int16_t WaterOn =-1;			// Флаг включения контура охлаждения
+//float TempWaterIn = -1;			// Температура воды на входе в контур
+//float TempWaterOut = -1; 		// Температура воды на выходе из контура
+//int16_t WaterFlow=-1;			// Значения датчика потока воды.
+int16_t fAlarmSoundOff=1;
 
 // Динамические параметры
 double tempTube20Prev;		// Запомненое значение температуры в колонне
@@ -185,7 +187,9 @@ void IRAM_ATTR myBeep(bool lng)
 	if (lng) beeperTime = 1000;	
 	else beeperTime = 500;
 	beepActive = true;
+#ifndef DEBUG
 	GPIO_ON(GPIO_BEEP);
+#endif
 }
 
 void shortBeep(void)
@@ -688,7 +692,7 @@ void IRAM_ATTR gpio_isr_handler(void* arg)
 			LEDC.timer_group[0].timer[0].conf.rst = 0;
 		
 			// задаем ШИМ-таймеру уставку
-			if (Hpoint >= HMAX - TRIAC_GATE_MAX_CYCLES) {
+			if (Hpoint >= MAX_HPOINT_VALUE) {
 				// If hpoint if very close to the maximum value, ie mostly off, simply turn off 
 				// the output to avoid glitch where hpoint exceeds duty. 
 				LEDC.channel_group[0].channel[0].conf0.sig_out_en = 0; 
@@ -762,7 +766,7 @@ cJSON* getModeInfo(cJSON *j)
 cJSON* getInformation(void)
 {
 	char data[80];
-	const char *wo;
+	//const char *wo;
 	cJSON *ja, *j;
 	time_t CurrentTime;
 	struct tm CurrentTm;
@@ -778,22 +782,17 @@ cJSON* getInformation(void)
 	getModeInfo(ja);
 
 	cJSON_AddItemToObject(ja, "uptime", cJSON_CreateString(data));
+
 	cJSON_AddItemToObject(ja, "CurVolts", cJSON_CreateNumber(CurVolts));
 	cJSON_AddItemToObject(ja, "CurPower", cJSON_CreateNumber(CurPower));
 	cJSON_AddItemToObject(ja, "SetPower", cJSON_CreateNumber(SetPower));
 	cJSON_AddItemToObject(ja, "CurFreq", cJSON_CreateNumber(CurFreq/2));
-	cJSON_AddItemToObject(ja, "Alarm", cJSON_CreateNumber(AlarmMode));
-	if (getAlarmModeStr())
-		cJSON_AddItemToObject(ja, "AlarmMode", cJSON_CreateString(getAlarmModeStr()));
 
-	if (WaterOn<0) wo = "No data";
-	else if (0 == WaterOn) wo = "Off";
-	else wo = "On";
-	cJSON_AddItemToObject(ja, "WaterOn", cJSON_CreateString(wo));
-	cJSON_AddItemToObject(ja, "TempWaterIn", cJSON_CreateNumber(TempWaterIn));
-	cJSON_AddItemToObject(ja, "TempWaterOut", cJSON_CreateNumber(TempWaterOut));
-	cJSON_AddItemToObject(ja, "WaterFlow", cJSON_CreateNumber(WaterFlow));
+	cJSON_AddItemToObject(ja, "Alarm", cJSON_CreateNumber(AlarmMode));
+	if (getAlarmModeStr())	cJSON_AddItemToObject(ja, "AlarmMode", cJSON_CreateString(getAlarmModeStr()));
 	cJSON_AddItemToObject(ja, "heap", cJSON_CreateNumber(esp_get_free_heap_size()));
+
+	//------BMP180--------
 	if (bmpTemperature > 0 && bmpTruePressure > 0) {
 		cJSON_AddItemToObject(ja, "bmpTemperature", cJSON_CreateNumber(bmpTemperature));
 		snprintf(data, sizeof(data)-1, "%0.2f", bmpTruePressure/133.332);
@@ -801,9 +800,23 @@ cJSON* getInformation(void)
 		cJSON_AddItemToObject(ja, "bmpPressurePa", cJSON_CreateNumber(bmpTruePressure));
 	}
 
+	//------ADC ads1015----------
+	if (IS_ADS1015_PRESENT){
+		j = cJSON_CreateArray();
+		//TickType_t systime = xTaskGetTickCount ();
+		for (int i=0; i<ADC_CHANNEL_COUNT; i++) {
+			cJSON *jadc = cJSON_CreateObject();
+			cJSON_AddItemToObject(jadc, "id", cJSON_CreateNumber(i));
+			cJSON_AddItemToObject(jadc, "val", cJSON_CreateNumber(adc[i].last_val));
+			cJSON_AddItemToArray(j, jadc);
+		}
+		cJSON_AddItemToObject(ja, "adc", j);
+	}
+
+	//------DS sensors------
 	j = getDSjson();
 	cJSON_AddItemToObject(ja, "sensors", j);
-
+	//------Valves--
 	j = cJSON_CreateArray();
 	for (int i=0; i<MAX_KLP; i++) {
 		cJSON_AddItemToArray(j, json_klp(i));
@@ -1936,6 +1949,7 @@ void app_main(void)
 	// I2C init
 	I2C_Init(I2C_MASTER_NUM, I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO);
 	task_i2cscanner();
+	start_adc_task();
 
 	DBG("Initializing SPIFFS");
 	esp_vfs_spiffs_conf_t conf = {
@@ -1959,7 +1973,6 @@ void app_main(void)
 	// Получение причины (пере)загрузки
 	resetReason = rtc_get_reset_reason(0);
 	DBG("Reset reason: %s\n", getResetReasonStr());
-
 
 	TIMERG0.wdt_wprotect=TIMG_WDT_WKEY_VALUE;
 	TIMERG0.wdt_feed=1;
@@ -2083,11 +2096,6 @@ void app_main(void)
 	restoreProcess();
 
 	if (getIntParam(DEFL_PARAMS, "beepChangeState")) myBeep(false);
-
-#ifdef DEBUG1
-	emulateT(DS_CUB, 80.0);
-	emulateT(DS_TUBE20, 45.0);
-#endif
 
 	xTaskCreate(&procTask, "proc scheduler", 4096*2, NULL, 1, NULL);
 
@@ -2227,7 +2235,7 @@ void restoreProcess(void) {
 	nvs_get_i16(nvsHandle, "MainMode", (int16_t*)&MainMode);
 	nvs_get_i16(nvsHandle, "SetPower", &pw);
 	nvs_get_i16(nvsHandle, "MainStatus", &MainStatus);
-	ESP_LOGI(__func__,"MMode:%d State:%d Power:%d",MainMode,MainStatus,pw);
+	LOG_MSG("MMode:%d State:%d Power:%d",MainMode,MainStatus,pw);
 	switch (MainMode) {
 		case  MODE_RECTIFICATION:
 		case  MODE_DISTIL:
@@ -2236,7 +2244,7 @@ void restoreProcess(void) {
 				nvs_get_u64(nvsHandle, "tempStabSR", (uint64_t*)&tempStabSR);
 				nvs_get_u64(nvsHandle, "tempTube20Prev", (uint64_t*)&tempTube20Prev);
 				nvs_get_i16(nvsHandle, "ProcChimSR", &ProcChimSR);
-				ESP_LOGI(__func__,"broken proc=true  Tstab:%02.1f Tprev:%02.1f ProcPWM:%d",tempStabSR,tempTube20Prev,ProcChimSR);
+				LOG_MSG("broken proc=true  Tstab:%02.1f Tprev:%02.1f ProcPWM:%d",tempStabSR,tempTube20Prev,ProcChimSR);
 			} // @suppress("No break at end of case")
 		case  MODE_POWEERREG:
 			  setPower(pw);
@@ -2244,28 +2252,6 @@ void restoreProcess(void) {
 		default:
 			break;
 	}
-}
-
-void write2log(const char* s){
-	cJSON *ja;
-	char data[80];
-
-	ja = cJSON_CreateObject();
-	cJSON_AddItemToObject(ja, "cmd", cJSON_CreateString("logline"));
-	cJSON_AddItemToObject(ja, "ch", cJSON_CreateString(""));
-	cJSON_AddItemToObject(ja, "level", cJSON_CreateString(""));
-
-	time_t CurrentTime=time(NULL);
-	struct tm CurrentTm;
-	localtime_r(&CurrentTime, &CurrentTm);
-	snprintf(data, sizeof(data)-1, "%02d-%02d-%d %02d:%02d:%02d", CurrentTm.tm_mday,CurrentTm.tm_mon+1,CurrentTm.tm_year+1900, CurrentTm.tm_hour, CurrentTm.tm_min,CurrentTm.tm_sec);
-	cJSON_AddItemToObject(ja, "date", cJSON_CreateString(data));
-	cJSON_AddItemToObject(ja, "message", cJSON_CreateString(s));
-
- 	char *r=cJSON_Print(ja);
-	cgiWebsockBroadcast("/ws", r, strlen(r), WEBSOCK_FLAG_NONE);
-	cJSON_Delete(ja);
-	if (r) free(r);
 }
 
 void setWaitStr(const char* s){

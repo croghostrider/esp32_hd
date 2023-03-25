@@ -840,6 +840,7 @@ int ds_init(int argc, char** argv)
 		d->deviceAddress[0] = 0;
 		d->is_connected = false;
 		d->emulated=false;
+		d->ext_emulated = false;
 		d->parasite = false;
 		d->bitResolution = 9;
 		d->waitForConversion = true;
@@ -878,6 +879,10 @@ int ds_init(int argc, char** argv)
 				sprintf(b,"%02X", deviceAddress[i]);
 				strcat(d->adressStr, b);
 			}
+
+			//=== если первые 6 байт адреса 281055443322, то это датчик эмулированный внешним устройством на 1wire шине
+			if (strstr(d->adressStr,"281055443322"))	d->ext_emulated=true;
+
 			d->is_connected = true;
 			if (ds_readPowerSupply(deviceAddress)) d->parasite = true;
 			d->bitResolution = max(d->bitResolution, ds_getResolution(d));
@@ -897,7 +902,6 @@ int ds_init(int argc, char** argv)
 					if (p) d->talert = p->valuedouble;
 					p = cJSON_GetObjectItem(ds, "descr");
 					if (p && p->valuestring) d->description = strdup(p->valuestring);
-
 				}
 			}
 			ESP_LOGI(TAG, "DS sensor found: %s", d->adressStr);
@@ -1109,7 +1113,7 @@ int16_t ds_calculateTemperature(DS18 *ds, uint8_t* scratchPad)
 	return fpTemperature;
 }
 
-
+/*
 // returns temperature in 1/128 degrees C or DEVICE_DISCONNECTED_RAW if the
 // device's scratch pad cannot be read successfully.
 // the numeric value of DEVICE_DISCONNECTED_RAW is defined in
@@ -1123,6 +1127,7 @@ int16_t ds_getTemp(DS18 *ds)
 	}
 	return DEVICE_DISCONNECTED_RAW;
 }
+*/
 
 // returns temperature in degrees C or DEVICE_DISCONNECTED_C if the
 // device's scratch pad cannot be read successfully.
@@ -1132,20 +1137,34 @@ int16_t ds_getTemp(DS18 *ds)
 float ds_getTempC(DS18 *ds)
 {
 	if (!ds) return -1;
-	if (!ds->emulated) {
-		int16_t newT=ds_getTemp(ds);
-		if  (newT==DEVICE_DISCONNECTED_RAW){ 		// if incorrect value from the sensor
-			if  (ds->errcount<DS_ERR_LIMIT) {				// check errors limit, if it isn't exeeded
-				ds->errcount++; 										// just add counter of errors
-				return ds->Ce;											// and return the previous correct T
-			}
-			else																//if errors limit is exceeded
-				return (ds->Ce = rawToCelsius(newT));		// return new T "as is"
-		} else  																// if T correct, so
-			if (ds->errcount) ds->errcount=0; 					// reset the errors counter to 0
-		ds->Ce = rawToCelsius(newT) + ds->corr;
+	if (ds->emulated)	return ds->Ce;
+
+	int16_t newT;
+	ScratchPad scratchPad;
+
+	if (!ds_isConnected(ds, scratchPad)) {
+		newT=DEVICE_DISCONNECTED_RAW;
+		if  (ds->errcount<DS_ERR_LIMIT) {				// check errors limit, if it isn't exeeded
+			ds->errcount++; 										// just add counter of errors
+			return ds->Ce;											// and return the previous correct T
+		}
+		return (ds->Ce = DEVICE_DISCONNECTED_C);	// return "as is"
 	}
-	return ds->Ce;
+
+	if (ds->errcount) ds->errcount=0; 					// reset the errors counter
+
+	if (ds->ext_emulated) {									// emulated external sensors have 16 bit precision
+		newT = (int16_t)(((uint16_t)scratchPad[LOW_ALARM_TEMP]<<8) | (int16_t)scratchPad[HIGH_ALARM_TEMP]);
+		if ((ds->type == DS_CONDUCT1) ||	(ds->type == DS_CONDUCT2)) {
+			return (ds->Ce = newT);
+		}
+		ds->Ce = newT/256.0;
+	}
+	else {
+		newT = ds_calculateTemperature(ds, scratchPad);
+		ds->Ce = rawToCelsius(newT);
+	}
+	return (ds->Ce += ds->corr);
 }
 
 // sends command for all devices on the bus to perform a temperature conversion
@@ -1315,13 +1334,12 @@ cJSON*  getDSjson(void){
 		cJSON_AddItemToArray(j, jt);
 
 		cJSON_AddItemToObject(jt, "id", cJSON_CreateNumber(d->id));
+		cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
 
 		if (d->emulated){
-			cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
 			cJSON_AddItemToObject(jt, "descr", cJSON_CreateString("emu"));
 		}
 		else {
-			cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
 			cJSON_AddItemToObject(jt, "descr", cJSON_CreateString(d->description?d->description:""));
 		}
 
@@ -1330,7 +1348,15 @@ cJSON*  getDSjson(void){
 		cJSON_AddItemToObject(jt, "corr", cJSON_CreateNumber(d->corr));
 		cJSON_AddItemToObject(jt, "talert", cJSON_CreateNumber(d->talert));
 		//cJSON_AddItemToObject(jt, "temp", cJSON_CreateNumber(d->Ce));
-		snprintf(buf, sizeof(buf)-1, "%02.2f", d->Ce);
+		if (d->ext_emulated){
+			if ((ds->type == DS_CONDUCT1) ||	(ds->type == DS_CONDUCT2)){
+				snprintf(buf, sizeof(buf)-1, "%d", (int)d->Ce);
+			}
+			else
+				snprintf(buf, sizeof(buf)-1, "%02.3f", d->Ce);
+		}
+		else
+			snprintf(buf, sizeof(buf)-1, "%02.2f", d->Ce);
 		cJSON_AddItemToObject(jt, "temp", cJSON_CreateString(buf));
 	}
 	return j;
