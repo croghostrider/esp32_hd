@@ -35,7 +35,7 @@ extern "C" {
 #define DS1822MODEL  0x22 
 #define DS1825MODEL  0x3B 
 #define DS28EA00MODEL 0x42 
- 
+
 // OneWire commands 
 #define STARTCONVO      0x44  // Tells device to take a temperature reading and put it on the scratchpad 
 #define COPYSCRATCH     0x48  // Copy EEPROM 
@@ -55,22 +55,18 @@ extern "C" {
 #define COUNT_REMAIN    6 
 #define COUNT_PER_C     7 
 #define SCRATCHPAD_CRC  8 
-
 // Device resolution 
 #define TEMP_9_BIT  0x1F //  9 bit 
 #define TEMP_10_BIT 0x3F // 10 bit 
 #define TEMP_11_BIT 0x5F // 11 bit 
 #define TEMP_12_BIT 0x7F // 12 bit 
-
- 
 // Коды ошибок
-#define DEVICE_DISCONNECTED_C -127 
-#define DEVICE_DISCONNECTED_F -196.6 
+#define DEVICE_DISCONNECTED_C -127.0
 #define DEVICE_DISCONNECTED_RAW -7040 
+
 
 // лимит кол-ва ошибок датчика, до которого возвращается предыдущая температура
 #define DS_ERR_LIMIT 3
-
 
 typedef uint8_t DeviceAddress[8];
 typedef uint8_t ScratchPad[9];
@@ -82,9 +78,13 @@ typedef enum DsType {
 	DS_DEFL=3,		// Датчик в дефлегматоре
 	DS_WATER_IN=4,		// Датчик воды охлаждения - вход
 	DS_WATER_OUT=5,		// Датчик воды охлаждения - выход
-	DS_ALARM=6,		// Датчик для аварийной сигнализации
+	DS_ALARM=6,		// Датчик для аварийной сигнализации, обычно - выход охладителя продукта
 	DS_UNKNOW=7,		// Неизвестный информационный датчик
-	DS_TSA=8
+	DS_TSA=8,			// Трубка связи с атмосферой
+	//-- далее идут два эмулятора ds18b20, которые в виде температуры 0..100 С показывают проводимость датчика проводимости спирта
+	//   базовая схема и скетч эмулятора ds18b20 из NTC-резисторов см. форум https://forum.homedistiller.ru/index.php?topic=380716.0
+	DS_CONDUCT1=9,		// Датчик проводимости 1
+	DS_CONDUCT2=10	// Датчик проводимости 2
 } DsType;
 
 typedef struct {
@@ -95,7 +95,8 @@ typedef struct {
 			uint16_t is_connected:1;			// датчик обнаружен при опросе шины
 			uint16_t parasite:1;				// питание датчика - паразитное
 			uint16_t waitForConversion:1;	// датчик в процессе преобразования
-			uint16_t emulated:1;				// датчик эмулируется
+			uint16_t emulated:1;				// датчика нет, он эмулируется в целях тестирования
+			uint16_t ext_emulated:1;		// внешнее устройство симулирует этот датчик на шину 1wire, изображая 18b20
 		};
 	};
 	DeviceAddress deviceAddress;	// ROM адрес датчика
@@ -166,7 +167,7 @@ bool ds_isParasitePowerMode(DS18 *ds);
 bool ds_isConversionComplete(void);
 void ds_blockTillConversionComplete(void);
 int16_t ds_calculateTemperature(DS18 *ds, uint8_t* scratchPad);
-int16_t ds_getTemp(DS18 *ds);
+//int16_t ds_getTemp(DS18 *ds);
 float ds_getTempC(DS18 *ds);
 void ds_requestTemperatures(void);
 int16_t ds_getUserData(DS18 *ds);
