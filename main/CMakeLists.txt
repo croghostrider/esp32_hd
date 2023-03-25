@@ -1,5 +1,6 @@
 # Edit following two lines to set component requirements (see docs)
-idf_component_register( SRCS 
+idf_component_register( SRCS
+"ads1015.c" 
 "cgiupdate.c"
 "config.c"
 "ds.c" 

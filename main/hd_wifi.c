@@ -38,6 +38,7 @@ License (MIT license):
 #include <cJSON.h>
 
 #include "config.h"
+#include "debug.h"
 #include "hd_wifi.h"
 #include "hd_main.h"
 
@@ -230,11 +231,15 @@ int get_wifi_config(void)
 		free(WIFI_knowAp);
 		WIFI_knowAp = NULL;	
 	}
-	if (stat(WIFI_CONFIGURATION, &st) != 0) return -1;
+	if (stat(WIFI_CONFIGURATION, &st) != 0) {
+		DBG("error opening of wifi.cfg");
+		return -1;
+	}
 	f = fopen(WIFI_CONFIGURATION, "r");
 	if (!f) return -1;
 	buff = malloc(st.st_size+2);
 	if (!buff) {
+		DBG("no enough memory for buffer of wifi.cfg");
 		fclose(f);
 		return -2;
 	}
@@ -299,7 +304,9 @@ esp_err_t wifiSetup(void)
 	wifi_event_group = xEventGroupCreate();
 
 	/* Получение конфигурации wifi */
-	get_wifi_config();
+	if (!get_wifi_config()){
+		ESP_LOGI(__func__,"WiFi cfg reading error! AP mode is used");
+	}
 
 	ESP_ERROR_CHECK(esp_netif_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());

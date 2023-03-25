@@ -83,9 +83,9 @@ typedef enum DsType {
 	DS_WATER_IN=4,		// Датчик воды охлаждения - вход
 	DS_WATER_OUT=5,		// Датчик воды охлаждения - выход
 	DS_ALARM=6,		// Датчик для аварийной сигнализации
-	DS_UNKNOW=7		// Неизвестный информационный датчик
+	DS_UNKNOW=7,		// Неизвестный информационный датчик
+	DS_TSA=8
 } DsType;
-
 
 typedef struct {
 	uint8_t	id;
