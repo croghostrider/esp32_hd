@@ -415,7 +415,9 @@ int httpIndex(HttpdConnData *connData)
 
 	esp_wifi_get_mode(&mode);
 
-	if (stat("/s/index.html", &st) == 0) loc = "/index.html";
+	if ((stat("/s/index.html", &st) == 0) || (stat("/s/index.html.gz", &st) == 0)){
+		loc = "/index.html";
+	}
 	else if (WIFI_MODE_STA == mode) loc = "/update";
 	else loc = "/wifi0";
 
@@ -1252,10 +1254,12 @@ int httpDeleteWiFi(HttpdConnData *connData)
 //This is a catch-all cgi function. It takes the url passed to it, looks up the corresponding
 //path in the filesystem and if it exists, passes the file through. This simulates what a normal
 //webserver would do with static files.
+/*
 int httpDefault(HttpdConnData *connData) {
 	FILE *file=connData->cgiData;
 	int len;
 	char buff[128];
+	bool isGzip=false;
 	
 	if (connData->conn==NULL) {
 		//Connection aborted. Clean up.
@@ -1268,8 +1272,28 @@ int httpDefault(HttpdConnData *connData) {
 		char f[128];
 		if (checkAuth(connData)) return HTTPD_CGI_DONE;
 		//Open the file so we can read it.
-		snprintf(f, sizeof(f), "/s%s", connData->url);
-		file = fopen(f, "r");
+
+		if ((strcmp(connData->url,"/jq.js")==0)||
+			(strcmp(connData->url,"/index.html")==0)
+			) {
+	           char *gz = f;
+	           //собираем путь к gz-архиву в SPIFF "/s/<filename>.gz"
+	           gz = stpcpy (gz, "/s");
+	           gz = stpcpy (gz, connData->url);
+	           gz = stpcpy (gz, ".gz");
+
+	           struct stat st;
+				if (stat(gz, &st) == 0) { // если gz-архив нашли, то открываем его
+					isGzip= true;
+					file = fopen(gz, "r");
+				}
+		}
+
+		if (!file) {
+			snprintf(f, sizeof(f), "/s%s", connData->url);
+			file = fopen(f, "r");
+		}
+
 		if (!file) {
 			if (strstr(connData->url, "index")) {
 				httpdStartResponse(connData, 302);
@@ -1289,19 +1313,114 @@ int httpDefault(HttpdConnData *connData) {
 
 		connData->cgiData=file;
 		httpdStartResponse(connData, 200);
+		if (isGzip){
+			httpdHeader(connData, "Cache-Control", "max-age=315360000");
+//			httpdHeader(connData, "Expires", "30 Jan 2021 12:00:00 GMT");
+		}
+		else
+			httpdHeader(connData, "cache-control", "private, max-age=0, no-cache");
+
 //		httpdHeader(connData, "Cache-Control", "no-cache, no-store, must-revalidate");
 //		httpdHeader(connData, "Pragma", "no-cache");
 //		httpdHeader(connData, "Expires", "-1");
-        	httpdHeader(connData, "Content-Type", httpdGetMimetype(connData->url));
-//		if (isGzip) {
-//			httpdHeader(connData, "Content-Encoding", "gzip");
-//		}
+        httpdHeader(connData, "Content-Type", httpdGetMimetype(connData->url));
+
+        if (isGzip) {
+			httpdHeader(connData, "Content-Encoding", "gzip");
+		}
+
 		httpdEndHeaders(connData);
 		return HTTPD_CGI_MORE;
 	}
 
 	len=fread(buff, 1, sizeof(buff), file);
 	if (len>0) httpdSend(connData, buff, len);
+	if (len != sizeof(buff)) {
+		fclose(file);
+		return HTTPD_CGI_DONE;
+	} else {
+		//Ok, till next time.
+		return HTTPD_CGI_MORE;
+	}
+}
+*/
+int httpDefault(HttpdConnData *connData) {
+	FILE *file=connData->cgiData;
+
+	if (connData->conn==NULL) {
+		//Connection aborted. Clean up.
+		if(file) fclose(file);
+		return HTTPD_CGI_DONE;
+	}
+
+	int len;
+	char buff[128];
+	bool isGzip=false;
+
+	//First call to this cgi.
+	if (file==NULL) {
+		DBG("file is NULL cgiData:%s",connData->url);
+
+		if ((strcmp(connData->url,"/jq.js")==0)||
+			(strcmp(connData->url,"/index.html")==0)
+			) {
+	           //пробуем открыть gz-архив
+				snprintf(buff, sizeof(buff), "/s%s.gz", connData->url);
+				file = fopen(buff, "r");
+				if (file){
+					isGzip= true;
+					DBG("gz opened '%s'",buff);
+				}
+		}
+
+		if (file==NULL)	{
+			//Open the file so we can read it.
+			snprintf(buff, sizeof(buff), "/s%s", connData->url);
+			file = fopen(buff, "r");
+		}
+
+		if (file==NULL) {
+			if (strstr(connData->url, "index")) {
+				httpdStartResponse(connData, 302);
+				httpdHeader(connData, "Location", "/");
+				httpdEndHeaders(connData);
+				HTTP_SEND(connData, "Moved to ", -1);
+				HTTP_SEND(connData, "/", -1);
+				return HTTPD_CGI_DONE;
+			}
+			return HTTPD_CGI_NOTFOUND;
+		}
+
+		// The gzip checking code is intentionally without #ifdefs because checking
+		// for FLAG_GZIP (which indicates gzip compressed file) is very easy, doesn't
+		// mean additional overhead and is actually safer to be on at all times.
+		// If there are no gzipped files in the image, the code bellow will not cause any harm.
+
+		connData->cgiData=file;
+		httpdStartResponse(connData, 200);
+
+		/* поставим кэширование только на jq.js) - 94 кб!!! */
+		if (isGzip){
+			httpdHeader(connData, "Cache-Control", "max-age=315360000");
+//			httpdHeader(connData, "Expires", "30 Jan 2021 12:00:00 GMT");
+		}
+		else
+			httpdHeader(connData, "cache-control", "private, max-age=0, no-cache");
+			//httpdHeader(connData, "Cache-Control", "max-age=3600");
+		    //httpdHeader(connData, "Cache-Control", "no-cache, no-store, must-revalidate");
+			//		httpdHeader(connData, "Pragma", "no-cache");
+			//		httpdHeader(connData, "Expires", "-1");
+        httpdHeader(connData, "Content-Type", httpdGetMimetype(connData->url));
+
+        if (isGzip) {
+			httpdHeader(connData, "Content-Encoding", "gzip");
+		}
+		httpdEndHeaders(connData);
+		return HTTPD_CGI_MORE;
+	}
+
+	len=fread(buff, 1, sizeof(buff), file);
+	if (len>0) HTTP_SEND(connData, buff, len);
 	if (len != sizeof(buff)) {
 		fclose(file);
 		return HTTPD_CGI_DONE;

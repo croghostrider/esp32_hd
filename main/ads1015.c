@@ -112,7 +112,7 @@ void put_adc(int channel, int16_t adc_value){
 	adc_t*  ch_ptr = &adc[channel];
 	ch_ptr->last_val=adc_value;
 
-	DBG("ch:%d v:%d",channel,	adc_value);
+	//DBG("ch:%d v:%d",channel,	adc_value);
 	// не пришло ли время поместить в историю значений
 	if ((xTaskGetTickCount ()-ch_ptr->last_change_time) < ADC_HIST_PERIOD_TICKS) {
 		return;
