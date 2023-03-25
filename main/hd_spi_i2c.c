@@ -22,6 +22,7 @@ License (MIT license):
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_err.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "soc/gpio_struct.h"
@@ -29,6 +30,7 @@ License (MIT license):
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "debug.h"
 #include "config.h"
 #include "hd_spi_i2c.h"
 
@@ -54,7 +56,7 @@ License (MIT license):
 static i2c_port_t i2c_num;
 static uint8_t sda_pin;
 static uint8_t scl_pin;
-static xSemaphoreHandle i2c_mux;
+static xSemaphoreHandle i2c_mux=NULL, spi_mux=NULL;
 char I2C_detect[128];	/* detectecd i2c devices list */
 type_lcd_t lcd_type;	/* detected lcd type on SPI bus */
 
@@ -283,7 +285,7 @@ void spi_setup(void)
 	gpio_set_level(SPI_PIN_RST, 1);
 	vTaskDelay(100 / portTICK_RATE_MS);
 
-	if (!i2c_mux) i2c_mux = xSemaphoreCreateMutex();
+	if (!spi_mux) spi_mux = xSemaphoreCreateMutex();
 
 	spi_bus_config_t buscfg={
 		.miso_io_num=SPI_PIN_MISO,
@@ -335,68 +337,64 @@ void spi_setup(void)
 }
 
 
+esp_err_t i2c_read(uint8_t i2c_address, const void *out_data, size_t out_size, void *in_data, size_t in_size) {
+    if (!i2c_address || !in_data || !in_size) return ESP_ERR_INVALID_ARG;
 
-esp_err_t I2CWrite(uint8_t i2c_address, uint8_t* data_wr, size_t size) {
-	xSemaphoreTake(i2c_mux, portMAX_DELAY);
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    if (!i2c_mux) 	return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTake(i2c_mux, portMAX_DELAY)!= pdTRUE) return ESP_ERR_TIMEOUT;
+
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+	if (out_data && out_size)
+	{	i2c_master_start(cmd);
+		i2c_master_write_byte(cmd, i2c_address << 1, true);
+		i2c_master_write(cmd, (void *)out_data, out_size, true);
+	}
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (i2c_address << 1 ), I2C_ACK_CHECK_EN);
-	i2c_master_write(cmd, data_wr, size, I2C_ACK_CHECK_EN);
-	i2c_master_stop(cmd);
-	esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_master_write_byte(cmd, i2c_address << 1 | I2C_MASTER_READ, I2C_ACK_CHECK_EN);
+    if (in_size > 1) {
+        i2c_master_read(cmd, in_data, in_size - 1, I2C_ACK_VAL);
+    }
+    i2c_master_read_byte(cmd, in_data + in_size - 1, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+	esp_err_t err = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	if (err != ESP_OK)
+		ESP_LOGE(__func__, "Could not read from device [0x%02x]: %d", i2c_address, err);
 	i2c_cmd_link_delete(cmd);
+
 	xSemaphoreGive(i2c_mux);
-	return ret;
+    return err;
 }
 
 esp_err_t I2CRead(uint8_t i2c_add, uint8_t* data_rd, size_t size) {
-	if (size == 0) {
-		return ESP_OK;
-	}
+	return i2c_read(i2c_add, NULL, 0, data_rd, size);
+}
+
+esp_err_t i2c_write(uint8_t i2c_address, const void *out_reg, size_t out_reg_size, const void *out_data, size_t out_size)
+{
+    if (!i2c_address || !out_data || !out_size) return ESP_ERR_INVALID_ARG;
+
 	xSemaphoreTake(i2c_mux, portMAX_DELAY);
+
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, ( i2c_add << 1 ) | I2C_MASTER_READ, I2C_ACK_CHECK_EN);
-	if (size > 1) {
-		i2c_master_read(cmd, data_rd, size-1, I2C_ACK_VAL);
+	i2c_master_write_byte(cmd, i2c_address << 1, I2C_ACK_CHECK_EN);
+	if (out_reg && out_reg_size){
+		i2c_master_write(cmd, (void *)out_reg, out_reg_size, I2C_ACK_CHECK_EN);
 	}
-	i2c_master_read_byte(cmd, data_rd + size-1, I2C_NACK_VAL);
+	i2c_master_write(cmd, (void *)out_data, out_size, I2C_ACK_CHECK_EN);
 	i2c_master_stop(cmd);
+
 	esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 	xSemaphoreGive(i2c_mux);
-	return ret;
+	if (ret != ESP_OK)
+		ESP_LOGE(TAG, "Could not write to device [0x%02x at %d]: %d", i2c_address, i2c_num, ret);
+    return ret;
 }
 
-esp_err_t I2CRead2(uint8_t i2c_add) 
-{
-	esp_err_t err;
-	uint8_t data[4];
-	data[0] = 0xe1;
-	data[1] = 0xf0;
-
-	xSemaphoreTake(i2c_mux, portMAX_DELAY);
-
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (i2c_add << 1 ), I2C_ACK_CHECK_EN);
-	i2c_master_write(cmd, data, 2, I2C_ACK_CHECK_EN);
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-
-
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, ( i2c_add << 1)|I2C_MASTER_READ, I2C_ACK_CHECK_EN);
-	i2c_master_read_byte(cmd, data, I2C_NACK_VAL);
-	i2c_master_stop(cmd);
-	err = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-	xSemaphoreGive(i2c_mux);
-	return err;
+esp_err_t I2CWrite(uint8_t i2c_address, uint8_t* data_wr, size_t size) {
+	return i2c_write(i2c_address,NULL,0,data_wr, size);
 }
-
 
 void task_i2cscanner(void)
 {
@@ -431,7 +429,7 @@ void task_i2cscanner(void)
 
 
 
-uint8_t I2C_Init(i2c_port_t _num, uint8_t _sda, uint8_t _scl) {
+esp_err_t I2C_Init(i2c_port_t _num, uint8_t _sda, uint8_t _scl) {
 
 	i2c_config_t conf;
 	i2c_num = _num;
@@ -439,20 +437,21 @@ uint8_t I2C_Init(i2c_port_t _num, uint8_t _sda, uint8_t _scl) {
 	scl_pin = _scl;
 
 	if (!i2c_mux) i2c_mux = xSemaphoreCreateMutex();
-	ESP_ERROR_CHECK(!i2c_mux);
-		
+
 	conf.mode = I2C_MODE_MASTER;
 	conf.sda_io_num = sda_pin;
 	conf.scl_io_num = scl_pin;
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
 	conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
-	i2c_param_config(i2c_num, &conf);
-
-	i2c_driver_install(i2c_num, conf.mode,
+	esp_err_t err=i2c_param_config(i2c_num, &conf);
+	DBG("I2C num:%d config ret:%d",i2c_num,err);
+	err = i2c_driver_install(i2c_num, conf.mode,
 		I2C_MASTER_RX_BUF_DISABLE,
 		I2C_MASTER_TX_BUF_DISABLE, 0);
-	printf("I2C installed\n");
-	return 0;
+	DBG("I2C drv ret:%d",err);
+	if (!err)	ESP_LOGI(TAG,"I2C installed Port:%d",i2c_num);
+	else ESP_LOGE(TAG,"I2C install error:%d",err);
+	return err;
 }
 

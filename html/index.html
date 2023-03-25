@@ -136,7 +136,7 @@ input[alt] {
 <script>
 var Id;
 var extColdConnected=0;
-let alarm_sound_off = 0;
+let alarm_sound_on = 0;
 
 (function() {
 
@@ -243,6 +243,8 @@ infoUpdate = function(d){
 	$(".heap").html('heap: '+d.heap);
     
     set_bmd_data(d);
+	show_ADC(d);
+	
     update_sensor_temp(d);
     display_valves(d.klapans);
 }
@@ -312,7 +314,7 @@ function websock_init(address, protocol) {
         break;
     case 'info':
         infoUpdate(d);
-        if ((!alarm_sound_off) && (d.Alarm>0)) alarm_beep();
+        if ((alarm_sound_on) && (d.Alarm>0)) alarm_beep();
         break;
    case 'mode':
         $(".MainMode").val(d.MainMode);
@@ -392,14 +394,22 @@ showStick = function(level,text) {
         <a>WS:<span class="ws_status" style="background-color:red; border-radius:6px; padding-left:4px;padding-right:4px; width:40px;"></span> <span style="margin-left:6px;">(<a class="timeLastWS">6</a> сек.)</span></a> 
         <span class="AlarmMode bold" style="color:red;"></span>
     </div>
-<div class="ta_l"><span class="time"></span> up: <span class="uptime">0:0:0</span></div>
-<div class="ta_l MainModeStr bold"></div>
-<div class="ta_l bold"><span class="CurPower"></span>
-<span class="bmpdata">
-    <a>T:<span class="bmpTemperature"></span></a>
-    <a>P:<span class="bmpTruePressure"></span></a>
-</span>    
-</div>
+	<div class="ta_l"><span class="time"></span> (working: <span class="uptime">0:0:0</span>)</div>
+	<div class="ta_l MainModeStr bold"></div>
+	<div class="ta_l bold">
+		<span class="CurPower"></span>
+		<span class="bmpdata" style="padding-left: 5px;">
+			<a>T :<span class="bmpTemperature"></span></a>
+			<a> P:<span class="bmpTruePressure"></span></a>
+		</span>    
+		<span class="adc" style="display:grid; grid-template-columns: 40px 45px 45px 45px 45px; background-color:#bfbfbf;">
+			<a>ADC:</a>
+			<a class="adc0_val"></a>
+			<a class="adc1_val"></a>
+			<a class="adc2_val"></a>
+			<a class="adc3_val"></a>
+		</span>
+	</div>
 </td></tr>
 <tr><td style="text-align: left; vertical-align: bottom; padding-top: 10px;">
 <input class="menu" type="button" onClick="disp_main();" value="Главная"/>
@@ -439,7 +449,7 @@ showStick = function(level,text) {
       <div style="grid-column:1/span 2;">
             Авария:
                 <label class="switch" > <input id="alarmsound" type="checkbox"> <span class="slider"> </span>  </label>
-                <img src="pic2.png" height="30px" width="30px" style="margin-right:12px">
+                <img src="sound.png" height="30px" width="30px" style="margin-right:12px">
             <span class="AlarmMode bold" style="color:red;"></span>
       </div>
 </div>
@@ -1430,8 +1440,8 @@ _sysinfo = function() {
 	$(".totalBytes").html('Всего: '+d.totalBytes);
 	$(".heap").html('heap: '+d.heap);
 	$(".rReason").html(d.rReason);
-    $('#alarmsound').prop("checked",0);
-    if (eval(d.asoundOff)) $('#alarmsound').prop("checked",true);
+    
+	/*$('#alarmsound').prop("checked",!eval(d.asoundOff));*/
     klp1_is_pwm = d.klp1pwm;
     
     if (eval(d.no_power)) 
@@ -1457,18 +1467,34 @@ set_bmd_data = function(d){
     else $(".bmpdata").hide();
 }
 
+show_ADC = function(d){
+    let show = false;
+	if (typeof(d.adc) != "undefined") {
+        show=true;
+		for (var i in d.adc) {
+			$(".adc"+i+"_val").html(d.adc[i].val);
+			$(".adc"+i+"_diff").html(d.adc[i].diff);
+			$(".adc"+i+"_time").html(d.adc[i].n_chng_time);
+		}
+	}
+    if (show) $(".adc").show();
+    else $(".adc").hide();
+}
+
 do_reset = function() {
   $.get('/r', {}, function(d) {
 	window.location.href="/index.html";
   }, 'html');
-
 }
 
 $('#alarmsound').click(function(){
-    if ($(this).is(':checked')) alarm_sound_off=1;
-    else alarm_sound_off=0;
+    let sOff=1;
+	
+	if ($(this).is(':checked')) {alarm_sound_on=1; sOff=0;}
+    else alarm_sound_on=0;
+	
     $.post('/asound', {
-            'off': alarm_sound_off
+            'off': sOff
        }, function(d) {
         showStick(d.err, d.msg);
       }, 'json');
@@ -1535,8 +1561,8 @@ $(document).ready(function() {
 	break;
   }
   $("#emuswitch").prop("checked",0);
-  if ($('#alarmsound').prop('checked')) alarm_sound_off=1;
-  else alarm_sound_off=0;
+  if ($('#alarmsound').prop('checked')) alarm_sound_on=1;
+  else alarm_sound_on=0;
   websock_init(u[4], 'web');
 });
 

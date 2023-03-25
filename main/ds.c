@@ -1315,13 +1315,12 @@ cJSON*  getDSjson(void){
 		cJSON_AddItemToArray(j, jt);
 
 		cJSON_AddItemToObject(jt, "id", cJSON_CreateNumber(d->id));
+		cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
 
 		if (d->emulated){
-			cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
 			cJSON_AddItemToObject(jt, "descr", cJSON_CreateString("emu"));
 		}
 		else {
-			cJSON_AddItemToObject(jt, "rom", cJSON_CreateString(d->adressStr));
 			cJSON_AddItemToObject(jt, "descr", cJSON_CreateString(d->description?d->description:""));
 		}
 
