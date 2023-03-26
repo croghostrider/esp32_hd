@@ -75,16 +75,6 @@ pos_sensor = []
 period = PERIOD_SEC
 tail_len = TAIL_LEN
 
-def is_digit(string):
-    if string.isdigit():
-       return True
-    else:
-        try:
-            float(string)
-            return True
-        except ValueError:
-            return False
-
 def read_header(fname):
     pos_sensor = []
     arr = []
@@ -97,7 +87,7 @@ def read_header(fname):
             #import ipdb; ipdb.set_trace()
             if row:
               fields = row[0].split(';')
-              if fields[0]=='time':
+              if (fields.count('uptime')>0):
                 for i in range(len(SENSORS_NAME)):
                   arr.append([])
                   if SENSORS_NAME[i] in fields:
@@ -115,32 +105,15 @@ def getSecUptime(uptime_str):
     # uptime_str д.быть в формате HH24:MI:SS
     try:
         if len(uptime_str.split(':'))==2:
-            t = datetime.strptime(uptime_str,'%M:%S')
+            return datetime.strptime(uptime_str,'%M:%S')
         else:
-            t = datetime.strptime(uptime_str,'%H:%M:%S')
+            return datetime.strptime(uptime_str,'%H:%M:%S')
     except ValueError:
         print(f'error uptime "{uptime_str}"')
-    #print(f' str:{uptime_str} t:{t}')
-    return t
-    '''    
-    datetime.strptime("21/11/06 16:30", "%d/%m/%y %H:%M")
-    #разбираем строку по разделителю ':'
-    uptime_arr = uptime_str.split(':')
-    # массив множителей для вычисления секунд
-    m = [1,60,3600]
-    ret  = 0
-    try:
-      k = 0
-      for i in reversed(uptime_arr):
-        ret += int(i)*m[k];
-        k +=1
-    except ValueError:
-      #если uptime не вычисляется
-      ret = -1
-    return ret
-    '''
+    return None
         
 def readCsv(fname):
+    uptime_index=1 
     arr = []
     # если сенсоры не найдены, возвращаем пустой список
     if (len(pos_sensor)==0):
@@ -157,17 +130,18 @@ def readCsv(fname):
         reader = csv.reader(file)
         for row in reader:
             if row:
-              nrow += 1
-              # преобразуем строку в список
-              fields = row[0].split(';') 
-              if is_digit(fields[0].split(':')[0]): #если второе  значение число, пытаемся разобрать строку 
-                #пытаемся получить из первого поля uptime в секундах. При ошибке получим -1
-                uptime = getSecUptime(fields[0])
-                #if (uptime< 0):
+                nrow += 1
+                # преобразуем строку в список
+                fields = row[0].split(';')
+                if (fields.count('time')): #заголовок
+                    continue
+                
+                #пытаемся получить uptime в секундах. При ошибке получим None
+                uptime = getSecUptime(fields[uptime_index])
                 if (uptime==None):
-                #если uptime не вычисляется - на сл.строку
-                  print(f'ошибка разбора поля uptime "{fields[0]}"')
-                  continue
+                    #если uptime не вычисляется - на сл.строку
+                    print(f'ошибка разбора поля uptime "{fields[0]}"')
+                    continue
                 #добавим uptime в массив X
                 arr[len(pos_sensor)].append(uptime)
                 
