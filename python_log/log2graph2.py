@@ -56,6 +56,7 @@ from matplotlib import mlab
 import datetime, time
 import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
+from datetime import datetime
 
 #список идентификаторов полей лога из которых берутся данные для графиков
  
@@ -68,12 +69,14 @@ SENSORS_NAME = "TCube;TTube 20%;TTube;TDeflegmator;TWater IN;TWater Out;TAlarm;"
 #GRAPH_LOGS  = [[0,1,2,4],[1,2,4],[5,6,7]]
 GRAPH_LOGS  = [[0,1,2,3],[1,2,3],[4,5,6]]
 
-TAIL_LEN = 80
-PERIOD_SEC = 2
+TAIL_LEN = 160
+PERIOD_SEC = 0
 
 pos_sensor = []
 period = PERIOD_SEC
 tail_len = TAIL_LEN
+axeXfield_name = 'uptime'
+uptime_index = 1
 
 def read_header(fname):
     pos_sensor = []
@@ -86,20 +89,19 @@ def read_header(fname):
           for row in reader:
             #import ipdb; ipdb.set_trace()
             if row:
-              fields = row[0].split(';')
-              if (fields.count('uptime')>0):
-                for i in range(len(SENSORS_NAME)):
-                  arr.append([])
-                  if SENSORS_NAME[i] in fields:
-                    pos_sensor.append(fields.index(SENSORS_NAME[i]))
-                  else:
-                    pos_sensor.append(-1)
+                fields = row[0].split(';')
+                if (fields.count(axeXfield_name)==0): #игнорим строки где нет имен полей 
+                    continue
+                for sname in SENSORS_NAME:
+                    arr.append([])
+                    if sname in fields:
+                        pos_sensor.append(fields.index(sname))
+                    else:
+                        pos_sensor.append(-1)
                 return pos_sensor
-    except e:
-        print(f'Файл {fname} не найден')
+    except Exception:
+        print(f'ошибка чтения заголовка файла {fname}')
         return []
-
-from datetime import datetime
 
 def getSecUptime(uptime_str):
     # uptime_str д.быть в формате HH24:MI:SS
@@ -109,20 +111,18 @@ def getSecUptime(uptime_str):
         else:
             return datetime.strptime(uptime_str,'%H:%M:%S')
     except ValueError:
-        print(f'error uptime "{uptime_str}"')
+        #print(f'error uptime "{uptime_str}"')
+        pass
     return None
         
 def readCsv(fname):
-    uptime_index=1 
-    arr = []
-    # если сенсоры не найдены, возвращаем пустой список
-    if (len(pos_sensor)==0):
-      return arr
-      
+    if len(pos_sensor)==0:
+        return []
+    
     # создаем список массивов для отображения графиков сенсоров + 1 на ось X
+    arr = []
     for i in range(len(pos_sensor)+1): 
       arr.append([])
-    
     #читаем данные из файла
     nrow=1
     with open(fname, "r", newline="") as file:
@@ -138,28 +138,23 @@ def readCsv(fname):
                 
                 #пытаемся получить uptime в секундах. При ошибке получим None
                 uptime = getSecUptime(fields[uptime_index])
-                if (uptime==None):
-                    #если uptime не вычисляется - на сл.строку
-                    print(f'ошибка разбора поля uptime "{fields[0]}"')
+                if (uptime==None):   #если uptime не вычисляется - на сл.строку
+                    #print(f'ошибка разбора поля uptime "{fields[0]}"')
                     continue
+
                 #добавим uptime в массив X
                 arr[len(pos_sensor)].append(uptime)
-                
-                #ищем в строке поля датчиков и добавляем их в соответствующие массивы Y
-                for i in range(len(pos_sensor)): # для всех сенсоров
-                  if pos_sensor[i] != -1: # если сенсор объявлен в заголовке файла
-                    # преобразовываем в число
+                #выбираем из строки поля с данными датчиков и добавляем их в соответствующие массивы Y
+                for i in range(len(pos_sensor)): 
+                    if pos_sensor[i] == -1: # если сенсора нет в заголовке файла
+                        continue
+                    # преобразовываем поле в число
                     try:
                         v = float(fields[pos_sensor[i]])
                     except ValueError:
-                        v = -127.0 # если ошибка преобразования в  число
-                    # проверяем значение, если ошибочное - заменяем на "волшебное" 22.22 
-                    if (v ==-127.0):
-                        v = 22.22
-                  else:
-                    v = 0;
-                  #добавляем в массив значение
-                  arr[i].append(v)
+                        v = None # если ошибка преобразования в  число
+                    #добавляем в массив значение
+                    arr[i].append(v)
     return arr
 
 def getTailStart(arr):
@@ -185,6 +180,8 @@ def plot_cont(filepath):
     def update(i):
         global pos_sensor
         arr = readCsv(filepath)
+        if len(arr)==0:
+            return 
         xlist = arr[len(arr)-1]
         ax.clear()
         #SENSORS_NAME = "TCube;TTube 20%;TTube 80%;TDeflegmator;TTSA;TWater IN;TWater Out".split(';')
@@ -251,7 +248,7 @@ if __name__ == "__main__":
         nargs='?',
         help="filename of log [esp32_hd.log by default]",
         default="esp32_hd.log")
-    parser.add_argument("-period", "-p", nargs='?', type=int, help=f"re-draw  period,sec {PERIOD_SEC} by default. 0-no redraw", default=PERIOD_SEC)
+    parser.add_argument("-period", "-p", nargs='?', type=int, help=f"re-draw  period,sec.0-no redraw.  By default {PERIOD_SEC}. ", default=PERIOD_SEC)
     parser.add_argument("-tail", "-t", nargs='?', type=int, help=f'point number of the 2d plot, min 2. By default {TAIL_LEN}', default=TAIL_LEN)
     args = parser.parse_args()
 
@@ -265,11 +262,11 @@ if __name__ == "__main__":
         f.close
     except FileNotFoundError:
         print(f'Файл {filepath} не найден')
-        exit()
+        sys.exit(0)
 
     print(f"logfile:{filepath} re-draw period:{period} sec tail:{tail_len}")
     pos_sensor = read_header(filepath)
-    if (pos_sensor.count(-1)>10):
+    if ((pos_sensor.count(-1)>10) or (len(pos_sensor)==0)):
         print(f'Датчики температуры в логе "{filepath}"не найдены')
-        exit()
+        sys.exit(0)
     plot_cont(filepath)

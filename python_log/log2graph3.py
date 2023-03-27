@@ -47,20 +47,11 @@ SENSORS_NAME = "A0val;A1val;A2val;A3val;".split(';')
 # первый массив - первое окно, второй - второе, третий - третье
 # число в массиве -  индекс переменной  в предыдущем списке
 GRAPH_LOGS  = [[0,1],[2,3]]
-PERIOD_SEC = 5
-
+PERIOD_SEC = 0
 pos_sensor = []
 period = PERIOD_SEC
-
-def is_digit(string):
-    if string.isdigit():
-       return True
-    else:
-        try:
-            float(string)
-            return True
-        except ValueError:
-            return False
+axeXfield_name = 'uptime'
+uptime_index = 1
 
 def read_header(fname):
     pos_sensor = []
@@ -73,17 +64,19 @@ def read_header(fname):
           for row in reader:
             #import ipdb; ipdb.set_trace()
             if row:
-              fields = row[0].split(';')
-              if fields[0]=='time':
-                for i in range(len(SENSORS_NAME)):
-                  arr.append([])
-                  if SENSORS_NAME[i] in fields:
-                    pos_sensor.append(fields.index(SENSORS_NAME[i]))
-                  else:
-                    pos_sensor.append(-1)
+                fields = row[0].split(';')
+                if (fields.count(axeXfield_name)==0): #игнорим строки где нет имен полей 
+                    continue
+              
+                for sname in SENSORS_NAME:
+                    arr.append([])
+                    if sname in fields:
+                        pos_sensor.append(fields.index(sname))
+                    else:
+                        pos_sensor.append(-1)
                 return pos_sensor
-    except e:
-        print(f'Файл {fname} не найден')
+    except Exception:
+        print(f'ошибка чтения заголовка файла {fname}')
         return []
 
 from datetime import datetime
@@ -92,21 +85,18 @@ def getSecUptime(uptime_str):
     # uptime_str д.быть в формате HH24:MI:SS
     try:
         if len(uptime_str.split(':'))==2:
-            t = datetime.strptime(uptime_str,'%M:%S')
+            return datetime.strptime(uptime_str,'%M:%S')
         else:
-            t = datetime.strptime(uptime_str,'%H:%M:%S')
+            return datetime.strptime(uptime_str,'%H:%M:%S')
     except ValueError:
-        print(f'error uptime "{uptime_str}"')
+        return None
+        #print(f'error uptime "{uptime_str}"')
     #print(f' str:{uptime_str} t:{t}')
-    return t
+    return None
         
 def readCsv(fname):
-    arr = []
-    # если сенсоры не найдены, возвращаем пустой список
-    if (len(pos_sensor)==0):
-      return arr
-      
     # создаем список массивов для отображения графиков сенсоров + 1 на ось X
+    arr = []
     for i in range(len(pos_sensor)+1): 
       arr.append([])
     
@@ -117,29 +107,23 @@ def readCsv(fname):
         for row in reader:
             if row:
                 # преобразуем строку в список
-                fields = row[0].split(';') 
-                if is_digit(fields[1].split(':')[0]): #если второе  значение число, пытаемся разобрать строку 
-                    #пытаемся получить из первого поля uptime в секундах. При ошибке получим -1
-                    uptime = getSecUptime(fields[1])
-                    #if (uptime< 0):
-                    if (uptime==None):
-                    #если uptime не вычисляется - на сл.строку
-                      print(f'ошибка разбора поля uptime "{fields[1]}"')
-                      continue
-                    #добавим uptime в массив X
-                    arr[len(pos_sensor)].append(uptime)
-                    #ищем в строке поля датчиков и добавляем их в соответствующие массивы Y
-                    for i in range(len(pos_sensor)): # для всех сенсоров
-                         if pos_sensor[i] != -1: # если сенсор объявлен в заголовке файла
-                            # преобразовываем в число
-                            if is_digit(fields[pos_sensor[i]]):
-                                v = fields[pos_sensor[i]]
-                            else:
-                                v = 666 # если ошибка преобразования в  число
-                         else:
-                            v = 0;
-                         #добавляем в массив значение
-                         arr[i].append(v)
+                fields = row[0].split(';')
+                uptime = getSecUptime(fields[uptime_index]) #пытаемся прочитать поле uptime
+                if (uptime==None): #если uptime не вычисляется - на сл.строку
+                    #print(f'ошибка разбора поля uptime "{fields[1]}"')
+                    continue
+                #добавим uptime в массив X
+                arr[len(pos_sensor)].append(uptime)
+                #ищем в строке поля датчиков и добавляем их в соответствующие массивы Y
+                for i in range(len(pos_sensor)): # для всех сенсоров
+                    if pos_sensor[i] == -1: # если сенсора нет в заголовке файла
+                        continue
+                    v = None
+                    # преобразовываем в число
+                    if fields[pos_sensor[i]].isdigit():
+                        v = int(fields[pos_sensor[i]])
+                    #добавляем в массив значение
+                    arr[i].append(v)
     return arr
 
 def plot_cont(filepath):
@@ -203,7 +187,7 @@ if __name__ == "__main__":
         nargs='?',
         help="filename of log [esp32_hd.log by default]",
         default="esp32_hd.log")
-    parser.add_argument("-period", "-p", nargs='?', type=int, help=f"re-draw  period,sec {PERIOD_SEC} by default. 0-no redraw", default=PERIOD_SEC)
+    parser.add_argument("-period", "-p", nargs='?', type=int, help=f"re-draw  period,sec.0-no redraw.  By default {PERIOD_SEC}. ", default=PERIOD_SEC)
     args = parser.parse_args()
 
     period = args.period
@@ -213,9 +197,10 @@ if __name__ == "__main__":
         f.close
     except FileNotFoundError:
         print(f'Файл {filepath} не найден')
-        exit()
-
+        sys.exit(0)
     print(f"logfile:{filepath} re-draw period:{period} sec")
     pos_sensor = read_header(filepath)
-            
+    if ((pos_sensor.count(-1)>3) or (len(pos_sensor)==0)):
+        print(f'отсчеты АЦП в логе "{filepath}"не найдены')
+        sys.exit(0)
     plot_cont(filepath)
