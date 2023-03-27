@@ -39,6 +39,7 @@ from matplotlib import mlab
 import datetime, time
 import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
+import logutil
 
 #список идентификаторов полей лога из которых берутся данные для графиков
 SENSORS_NAME = "A0val;A1val;A2val;A3val;".split(';')
@@ -47,53 +48,13 @@ SENSORS_NAME = "A0val;A1val;A2val;A3val;".split(';')
 # первый массив - первое окно, второй - второе, третий - третье
 # число в массиве -  индекс переменной  в предыдущем списке
 GRAPH_LOGS  = [[0,1],[2,3]]
-PERIOD_SEC = 0
+PERIOD_SEC = 5
 pos_sensor = []
 period = PERIOD_SEC
 axeXfield_name = 'uptime'
 uptime_index = 1
 
-def read_header(fname):
-    pos_sensor = []
-    arr = []
-    try:
-        with open(fname, "r", newline="") as file:
-          #читаем файл целиком
-          reader = csv.reader(file)
-          line_no=0
-          for row in reader:
-            #import ipdb; ipdb.set_trace()
-            if row:
-                fields = row[0].split(';')
-                if (fields.count(axeXfield_name)==0): #игнорим строки где нет имен полей 
-                    continue
-              
-                for sname in SENSORS_NAME:
-                    arr.append([])
-                    if sname in fields:
-                        pos_sensor.append(fields.index(sname))
-                    else:
-                        pos_sensor.append(-1)
-                return pos_sensor
-    except Exception:
-        print(f'ошибка чтения заголовка файла {fname}')
-        return []
-
-from datetime import datetime
-
-def getSecUptime(uptime_str):
-    # uptime_str д.быть в формате HH24:MI:SS
-    try:
-        if len(uptime_str.split(':'))==2:
-            return datetime.strptime(uptime_str,'%M:%S')
-        else:
-            return datetime.strptime(uptime_str,'%H:%M:%S')
-    except ValueError:
-        return None
-        #print(f'error uptime "{uptime_str}"')
-    #print(f' str:{uptime_str} t:{t}')
-    return None
-        
+       
 def readCsv(fname):
     # создаем список массивов для отображения графиков сенсоров + 1 на ось X
     arr = []
@@ -108,7 +69,7 @@ def readCsv(fname):
             if row:
                 # преобразуем строку в список
                 fields = row[0].split(';')
-                uptime = getSecUptime(fields[uptime_index]) #пытаемся прочитать поле uptime
+                uptime = logutil.getSecUptime(fields[uptime_index]) #пытаемся прочитать поле uptime
                 if (uptime==None): #если uptime не вычисляется - на сл.строку
                     #print(f'ошибка разбора поля uptime "{fields[1]}"')
                     continue
@@ -198,9 +159,17 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print(f'Файл {filepath} не найден')
         sys.exit(0)
+
     print(f"logfile:{filepath} re-draw period:{period} sec")
-    pos_sensor = read_header(filepath)
-    if ((pos_sensor.count(-1)>3) or (len(pos_sensor)==0)):
+
+    header = logutil.get_header(filepath, axeXfield_name)
+    if header==None:
+        print(f"в файле '{filepath}' не найден заголовок")
+        sys.exit(0)
+        
+    pos_sensor = logutil.findSensor(header, SENSORS_NAME)
+    if ((pos_sensor.count(-1)>=len(SENSORS_NAME)) or (len(pos_sensor)==0)):
         print(f'отсчеты АЦП в логе "{filepath}"не найдены')
         sys.exit(0)
+        
     plot_cont(filepath)

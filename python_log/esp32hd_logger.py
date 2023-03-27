@@ -91,8 +91,11 @@ if __name__ == '__main__':
                                 #outputFile.write(f"V{k0.get('id')};")
                         else:
                             if i=='adc':
-                                for a0 in data.get(i):
-                                    s = s + f"A{a0.get('id')}val;"
+                                try:
+                                    for a0 in data.get(i):
+                                        s = s + f"A{a0.get('id')}val;"
+                                except Exception:
+                                    pass
                             else:
                                 s = s + f"{i};"
                 print(s)
@@ -112,8 +115,11 @@ if __name__ == '__main__':
                                 outputFile.write(f"{k.get('is_pwm')};{k.get('pwm_time')};{k.get('pwm_percent')};")
                     else:
                         if x=='adc':
-                            for a in data.get(x):
-                                outputFile.write(f"{a.get('val')};")
+                            try:
+                                for a in data.get(x):
+                                    outputFile.write(f"{a.get('val')};")
+                            except Exception:
+                                pass
                         else:
                             v = data.get(x)
                             outputFile.write(f"{v};")

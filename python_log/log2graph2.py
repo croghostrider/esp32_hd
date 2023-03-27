@@ -57,6 +57,7 @@ import datetime, time
 import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
 from datetime import datetime
+import logutil
 
 #список идентификаторов полей лога из которых берутся данные для графиков
  
@@ -70,51 +71,14 @@ SENSORS_NAME = "TCube;TTube 20%;TTube;TDeflegmator;TWater IN;TWater Out;TAlarm;"
 GRAPH_LOGS  = [[0,1,2,3],[1,2,3],[4,5,6]]
 
 TAIL_LEN = 160
-PERIOD_SEC = 0
+PERIOD_SEC = 5
 
 pos_sensor = []
 period = PERIOD_SEC
 tail_len = TAIL_LEN
 axeXfield_name = 'uptime'
 uptime_index = 1
-
-def read_header(fname):
-    pos_sensor = []
-    arr = []
-    try:
-        with open(fname, "r", newline="") as file:
-          #читаем файл целиком
-          reader = csv.reader(file)
-          line_no=0
-          for row in reader:
-            #import ipdb; ipdb.set_trace()
-            if row:
-                fields = row[0].split(';')
-                if (fields.count(axeXfield_name)==0): #игнорим строки где нет имен полей 
-                    continue
-                for sname in SENSORS_NAME:
-                    arr.append([])
-                    if sname in fields:
-                        pos_sensor.append(fields.index(sname))
-                    else:
-                        pos_sensor.append(-1)
-                return pos_sensor
-    except Exception:
-        print(f'ошибка чтения заголовка файла {fname}')
-        return []
-
-def getSecUptime(uptime_str):
-    # uptime_str д.быть в формате HH24:MI:SS
-    try:
-        if len(uptime_str.split(':'))==2:
-            return datetime.strptime(uptime_str,'%M:%S')
-        else:
-            return datetime.strptime(uptime_str,'%H:%M:%S')
-    except ValueError:
-        #print(f'error uptime "{uptime_str}"')
-        pass
-    return None
-        
+       
 def readCsv(fname):
     if len(pos_sensor)==0:
         return []
@@ -137,7 +101,7 @@ def readCsv(fname):
                     continue
                 
                 #пытаемся получить uptime в секундах. При ошибке получим None
-                uptime = getSecUptime(fields[uptime_index])
+                uptime = logutil.getSecUptime(fields[uptime_index])
                 if (uptime==None):   #если uptime не вычисляется - на сл.строку
                     #print(f'ошибка разбора поля uptime "{fields[0]}"')
                     continue
@@ -257,16 +221,22 @@ if __name__ == "__main__":
     tail_len = args.tail
     if tail_len<2:
       tail_len = 2
+      
+    print(f"logfile:{filepath} re-draw period:{period} sec tail:{tail_len}")
     try:
         f = open(filepath)
         f.close
     except FileNotFoundError:
         print(f'Файл {filepath} не найден')
         sys.exit(0)
-
-    print(f"logfile:{filepath} re-draw period:{period} sec tail:{tail_len}")
-    pos_sensor = read_header(filepath)
-    if ((pos_sensor.count(-1)>10) or (len(pos_sensor)==0)):
-        print(f'Датчики температуры в логе "{filepath}"не найдены')
+        
+    header = logutil.get_header(filepath, axeXfield_name)
+    if header==None:
+        print(f"в файле '{filepath}' не найден заголовок")
+        sys.exit(0)
+        
+    pos_sensor = logutil.findSensor(header, SENSORS_NAME)
+    if ((pos_sensor.count(-1)>=len(SENSORS_NAME)) or (len(pos_sensor)==0)):
+        print(f'нет датчиков для отображения')
         sys.exit(0)
     plot_cont(filepath)
