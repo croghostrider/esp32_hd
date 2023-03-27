@@ -39,6 +39,7 @@ from matplotlib import mlab
 import datetime, time
 import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
+import logutil
 
 #список идентификаторов полей лога из которых берутс€ данные дл€ графиков
 SENSORS_NAME = "A0val;A1val;A2val;A3val;".split(';')
@@ -48,65 +49,15 @@ SENSORS_NAME = "A0val;A1val;A2val;A3val;".split(';')
 # число в массиве -  индекс переменной  в предыдущем списке
 GRAPH_LOGS  = [[0,1],[2,3]]
 PERIOD_SEC = 5
-
 pos_sensor = []
 period = PERIOD_SEC
+axeXfield_name = 'uptime'
+uptime_index = 1
 
-def is_digit(string):
-    if string.isdigit():
-       return True
-    else:
-        try:
-            float(string)
-            return True
-        except ValueError:
-            return False
-
-def read_header(fname):
-    pos_sensor = []
-    arr = []
-    try:
-        with open(fname, "r", newline="") as file:
-          #читаем файл целиком
-          reader = csv.reader(file)
-          line_no=0
-          for row in reader:
-            #import ipdb; ipdb.set_trace()
-            if row:
-              fields = row[0].split(';')
-              if fields[0]=='time':
-                for i in range(len(SENSORS_NAME)):
-                  arr.append([])
-                  if SENSORS_NAME[i] in fields:
-                    pos_sensor.append(fields.index(SENSORS_NAME[i]))
-                  else:
-                    pos_sensor.append(-1)
-                return pos_sensor
-    except e:
-        print(f'‘айл {fname} не найден')
-        return []
-
-from datetime import datetime
-
-def getSecUptime(uptime_str):
-    # uptime_str д.быть в формате HH24:MI:SS
-    try:
-        if len(uptime_str.split(':'))==2:
-            t = datetime.strptime(uptime_str,'%M:%S')
-        else:
-            t = datetime.strptime(uptime_str,'%H:%M:%S')
-    except ValueError:
-        print(f'error uptime "{uptime_str}"')
-    #print(f' str:{uptime_str} t:{t}')
-    return t
-        
+       
 def readCsv(fname):
-    arr = []
-    # если сенсоры не найдены, возвращаем пустой список
-    if (len(pos_sensor)==0):
-      return arr
-      
     # создаем список массивов дл€ отображени€ графиков сенсоров + 1 на ось X
+    arr = []
     for i in range(len(pos_sensor)+1): 
       arr.append([])
     
@@ -117,29 +68,23 @@ def readCsv(fname):
         for row in reader:
             if row:
                 # преобразуем строку в список
-                fields = row[0].split(';') 
-                if is_digit(fields[1].split(':')[0]): #если второе  значение число, пытаемс€ разобрать строку 
-                    #пытаемс€ получить из первого пол€ uptime в секундах. ѕри ошибке получим -1
-                    uptime = getSecUptime(fields[1])
-                    #if (uptime< 0):
-                    if (uptime==None):
-                    #если uptime не вычисл€етс€ - на сл.строку
-                      print(f'ошибка разбора пол€ uptime "{fields[1]}"')
-                      continue
-                    #добавим uptime в массив X
-                    arr[len(pos_sensor)].append(uptime)
-                    #ищем в строке пол€ датчиков и добавл€ем их в соответствующие массивы Y
-                    for i in range(len(pos_sensor)): # дл€ всех сенсоров
-                         if pos_sensor[i] != -1: # если сенсор объ€влен в заголовке файла
-                            # преобразовываем в число
-                            if is_digit(fields[pos_sensor[i]]):
-                                v = fields[pos_sensor[i]]
-                            else:
-                                v = 666 # если ошибка преобразовани€ в  число
-                         else:
-                            v = 0;
-                         #добавл€ем в массив значение
-                         arr[i].append(v)
+                fields = row[0].split(';')
+                uptime = logutil.getSecUptime(fields[uptime_index]) #пытаемс€ прочитать поле uptime
+                if (uptime==None): #если uptime не вычисл€етс€ - на сл.строку
+                    #print(f'ошибка разбора пол€ uptime "{fields[1]}"')
+                    continue
+                #добавим uptime в массив X
+                arr[len(pos_sensor)].append(uptime)
+                #ищем в строке пол€ датчиков и добавл€ем их в соответствующие массивы Y
+                for i in range(len(pos_sensor)): # дл€ всех сенсоров
+                    if pos_sensor[i] == -1: # если сенсора нет в заголовке файла
+                        continue
+                    v = None
+                    # преобразовываем в число
+                    if fields[pos_sensor[i]].isdigit():
+                        v = int(fields[pos_sensor[i]])
+                    #добавл€ем в массив значение
+                    arr[i].append(v)
     return arr
 
 def plot_cont(filepath):
@@ -203,7 +148,7 @@ if __name__ == "__main__":
         nargs='?',
         help="filename of log [esp32_hd.log by default]",
         default="esp32_hd.log")
-    parser.add_argument("-period", "-p", nargs='?', type=int, help=f"re-draw  period,sec {PERIOD_SEC} by default. 0-no redraw", default=PERIOD_SEC)
+    parser.add_argument("-period", "-p", nargs='?', type=int, help=f"re-draw  period,sec.0-no redraw.  By default {PERIOD_SEC}. ", default=PERIOD_SEC)
     args = parser.parse_args()
 
     period = args.period
@@ -213,9 +158,18 @@ if __name__ == "__main__":
         f.close
     except FileNotFoundError:
         print(f'‘айл {filepath} не найден')
-        exit()
+        sys.exit(0)
 
     print(f"logfile:{filepath} re-draw period:{period} sec")
-    pos_sensor = read_header(filepath)
-            
+
+    header = logutil.get_header(filepath, axeXfield_name)
+    if header==None:
+        print(f"в файле '{filepath}' не найден заголовок")
+        sys.exit(0)
+        
+    pos_sensor = logutil.findSensor(header, SENSORS_NAME)
+    if ((pos_sensor.count(-1)>=len(SENSORS_NAME)) or (len(pos_sensor)==0)):
+        print(f'отсчеты ј÷ѕ в логе "{filepath}"не найдены')
+        sys.exit(0)
+        
     plot_cont(filepath)

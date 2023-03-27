@@ -45,10 +45,10 @@ if __name__ == '__main__':
         help="filename of log [esp32_hd.log by default]",
         default="esp32_hd.log")
     parser.add_argument(
-        "ip",
+        '-ip',
         nargs='?',
-        help="IP esp32_hd [192.168.0.44 by default]",
-        default='192.168.0.44')
+        help="IP esp32_hd",
+        default=None)
     parser.add_argument('--c', action='store_const', help="clear file", const = 0, default = 0)
     parser.add_argument("-period", "-p", nargs='?', type=int, help="logging period,sec [5 sec by default]",default =5)
     args = parser.parse_args()
@@ -60,14 +60,14 @@ if __name__ == '__main__':
 
     if args.ip is None:
         parser.error('IP must be specifyied')
-        exit()
+        sys.exit(0)
     
     if args.filename is None:
         parser.error('filename  must be specifyied')
-        exit()
+        sys.exit(0)
         
     if (not readHttp(args.ip)):
-        exit()
+        sys.exit(0)
     outputFile = openFile(args.filename,args.c)
     head_printed = 0
     try:
@@ -91,8 +91,11 @@ if __name__ == '__main__':
                                 #outputFile.write(f"V{k0.get('id')};")
                         else:
                             if i=='adc':
-                                for a0 in data.get(i):
-                                    s = s + f"A{a0.get('id')}val;"
+                                try:
+                                    for a0 in data.get(i):
+                                        s = s + f"A{a0.get('id')}val;"
+                                except Exception:
+                                    pass
                             else:
                                 s = s + f"{i};"
                 print(s)
@@ -112,8 +115,11 @@ if __name__ == '__main__':
                                 outputFile.write(f"{k.get('is_pwm')};{k.get('pwm_time')};{k.get('pwm_percent')};")
                     else:
                         if x=='adc':
-                            for a in data.get(x):
-                                outputFile.write(f"{a.get('val')};")
+                            try:
+                                for a in data.get(x):
+                                    outputFile.write(f"{a.get('val')};")
+                            except Exception:
+                                pass
                         else:
                             v = data.get(x)
                             outputFile.write(f"{v};")
