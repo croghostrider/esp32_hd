@@ -23,12 +23,12 @@ def openFile(filename, clr):
     try:
         return open(filename, "w" if clr!=0 else "a")
     except Exception as e:
-        sys.stderr.write('could not open file {}: {}\n'.format(filename, e))
+        sys.stderr.write(f'could not open file {filename}: {e}\n')
         return None
 
 def readHttp(ip):
     try:
-        response = requests.get('http://'+ip+'/maininfo')
+        response = requests.get(f'http://{ip}/maininfo')
         response.raise_for_status()
     except HTTPError as http_err:
         print(f'HTTP error occurred: {http_err}')  # Python 3.6
@@ -55,23 +55,23 @@ if __name__ == '__main__':
 
     if not args.period:
         args.period = 5
-        
+
     print(f"IP:{args.ip} file:{args.filename} period:{args.period} sec  cleared:{args.c}")
 
     if args.ip is None:
         parser.error('IP must be specifyied')
         sys.exit(0)
-    
+
     if args.filename is None:
         parser.error('filename  must be specifyied')
         sys.exit(0)
-        
+
     if (not readHttp(args.ip)):
         sys.exit(0)
     outputFile = openFile(args.filename,args.c)
     head_printed = 0
     try:
-      while (True):
+        while True:
             r = readHttp(args.ip)
             if (not r): continue
             data = r.json()
@@ -80,24 +80,22 @@ if __name__ == '__main__':
                 for i in LOG_FIELDS:
                     if i=='sensors':
                         for s0 in data.get(i):
-                            s = s + f"T{s0.get('type_str')};"
-                            #outputFile.write(f"T{s0.get('type_str')};")
-                    else: 
-                        if i=='klapans':
-                            for k0 in data.get(i):
-                                s = s + f"V{k0.get('id')}open;"
-                                if k0.get('id') == 2:
-                                    s = s + f"V{k0.get('id')}pwm;V{k0.get('id')}period;V{k0.get('id')}prc;"
-                                #outputFile.write(f"V{k0.get('id')};")
-                        else:
-                            if i=='adc':
-                                try:
-                                    for a0 in data.get(i):
-                                        s = s + f"A{a0.get('id')}val;"
-                                except Exception:
-                                    pass
-                            else:
-                                s = s + f"{i};"
+                            s = f"{s}T{s0.get('type_str')};"
+                                                    #outputFile.write(f"T{s0.get('type_str')};")
+                    elif i=='klapans':
+                        for k0 in data.get(i):
+                            s = f"{s}V{k0.get('id')}open;"
+                            if k0.get('id') == 2:
+                                s = f"{s}V{k0.get('id')}pwm;V{k0.get('id')}period;V{k0.get('id')}prc;"
+                                                        #outputFile.write(f"V{k0.get('id')};")
+                    elif i=='adc':
+                        try:
+                            for a0 in data.get(i):
+                                s = f"{s}A{a0.get('id')}val;"
+                        except Exception:
+                            pass
+                    else:
+                        s = f"{s}{i};"
                 print(s)
                 outputFile.write(s)
                 outputFile.write('\n')
@@ -107,22 +105,20 @@ if __name__ == '__main__':
                 if x=='sensors':
                     for s in data.get(x):
                         outputFile.write(f"{s.get('temp')};")
+                elif x=='klapans':
+                    for k in data.get(x):
+                        outputFile.write(f"{k.get('is_open')};")
+                        if k.get('id')==2:
+                            outputFile.write(f"{k.get('is_pwm')};{k.get('pwm_time')};{k.get('pwm_percent')};")
+                elif x=='adc':
+                    try:
+                        for a in data.get(x):
+                            outputFile.write(f"{a.get('val')};")
+                    except Exception:
+                        pass
                 else:
-                    if x=='klapans':
-                        for k in data.get(x):
-                            outputFile.write(f"{k.get('is_open')};")
-                            if k.get('id')==2:
-                                outputFile.write(f"{k.get('is_pwm')};{k.get('pwm_time')};{k.get('pwm_percent')};")
-                    else:
-                        if x=='adc':
-                            try:
-                                for a in data.get(x):
-                                    outputFile.write(f"{a.get('val')};")
-                            except Exception:
-                                pass
-                        else:
-                            v = data.get(x)
-                            outputFile.write(f"{v};")
+                    v = data.get(x)
+                    outputFile.write(f"{v};")
             outputFile.write('\n')
             outputFile.flush()
             time.sleep(args.period)
